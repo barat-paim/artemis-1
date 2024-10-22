@@ -54,3 +54,23 @@ model: fine_tuned_llama_squad (fine-tuned on SQuAD)
   Exact Match Score: 0
 
 ```
+
+#Assumptions:
+
+## Catastrophic Forgetting During Fine-tuning:
+
+- High likelihood of occurrence
+- The fine-tuning process may have been too aggressive, causing the model to "forget" its pre-trained knowledge and overfit to the fine-tuning dataset.
+- This can result in the model losing its ability to generate coherent text, instead producing gibberish or repetitive patterns.
+
+## Inappropriate Learning Rate or Training Duration:
+
+- Very likely to be a contributing factor
+- If the learning rate was set too high or the model was trained for too many epochs, it could lead to unstable training and poor generalization.
+- This might cause the model to memorize specific patterns in the training data rather than learning to answer questions effectively.
+
+## Data Quality or Format Issues in Fine-tuning Dataset:
+
+- Moderately high chance of being a problem
+- If the fine-tuning dataset contained errors, inconsistencies, or was formatted differently from the pre-training data, it could confuse the model.
+- This might lead to the model learning incorrect patterns or struggling to generate proper responses.
