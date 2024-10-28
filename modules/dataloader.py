@@ -1,7 +1,8 @@
 # dataloader.py
 from torch.utils.data import Dataset, DataLoader
-from typing import Dict, Any
+from typing import Dict, Any, List
 import torch
+from config import TrainingConfig
 
 class BaseDataset(Dataset):
     def __init__(self, data, tokenizer, config: TrainingConfig):
