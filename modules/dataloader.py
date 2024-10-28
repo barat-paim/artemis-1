@@ -34,3 +34,10 @@ class TextClassificationDataset(BaseDataset):
             "attention_mask": inputs['attention_mask'].squeeze(),
             "labels": torch.tensor(item['label'])   
         }
+    
+    def collate_fn(self, batch: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+        return {
+            'input_ids': torch.stack([x['input_ids'] for x in batch]),
+            'attention_mask': torch.stack([x['attention_mask'] for x in batch]),
+            'labels': torch.stack([x['labels'] for x in batch])
+        }

@@ -54,8 +54,8 @@ def main():
 
     # Prepare Datasets
     print("\nPreparing datasets...")
-    train_dataset = TextClassificationDataset(train_data, tokenizer, config.model_max_length)
-    eval_dataset = TextClassificationDataset(eval_data, tokenizer, config.model_max_length)
+    train_dataset = TextClassificationDataset(train_data, tokenizer, config)
+    eval_dataset = TextClassificationDataset(eval_data, tokenizer, config)
     print("Datasets prepared successfully")
 
     # Initialize trainer and start training
