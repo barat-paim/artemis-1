@@ -4,12 +4,19 @@ import torch
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from transformers import get_linear_schedule_with_warmup
-from sklearn.metrics import accuracy_score, f1_score
+try:
+    from sklearn.metrics import accuracy_score, f1_score
+except ImportError:
+    print("Installing scikit-learn...")
+    import subprocess
+    subprocess.check_call(["pip3", "install", "scikit-learn", "--user"])
+    from sklearn.metrics import accuracy_score, f1_score
 import numpy as np
 from typing import Optional
 from config import TrainingConfig
 from monitor import TrainingMonitor
 from datasets import Dataset
+from tqdm import tqdm
 
 class Trainer:
     def __init__(
@@ -142,10 +149,13 @@ class Trainer:
                     self.monitor.log_metrics(metrics, self.global_step)
                 
                 # Evaluate and save checkpoint
-                if self.eval_dataloader and self.global_step % self.config.eval_steps == 0:
+                if self.eval_dataloader and (self.global_step % self.config.eval_steps == 0 or self.global_step == 0):
                     eval_metrics = self.evaluate()
                     if self.monitor:
                         self.monitor.log_metrics(eval_metrics, self.global_step)
+                    print(f"\nEvaluation metrics at step {self.global_step}:")
+                    print(f"Accuracy: {eval_metrics['eval_accuracy']:.4f}")
+                    print(f"F1 Score: {eval_metrics['eval_f1']:.4f}")
                 
                 if self.global_step % self.config.save_steps == 0:
                     self.save_checkpoint(f'checkpoint-{self.global_step}')

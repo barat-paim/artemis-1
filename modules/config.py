@@ -29,7 +29,7 @@ class TrainingConfig:
     # Logging & Checkpointing
     output_dir: str = "./outputs"
     logging_steps: int = 10
-    eval_steps: int = 100
+    eval_steps: int = 20
 
     # LoRA Settings (if using LoRA)
     use_lora: bool = True
