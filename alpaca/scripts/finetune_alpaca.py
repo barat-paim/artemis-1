@@ -74,7 +74,7 @@ def load_tokenizer_and_model(model_path):
 def prepare_dataset(tokenizer, max_length=512):
     """Load and prepare the dataset"""
     logger.info("Loading dataset...")
-    dataset = load_from_disk("./data/alpaca_prepared")
+    dataset = load_from_disk("./alpaca/data/alpaca_prepared")
     
     def tokenize_function(examples):
         # Combine instruction, input, and output
