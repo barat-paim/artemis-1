@@ -34,3 +34,33 @@ feat: Add TensorBoard logging to improved fine-tuning
 - Track training/eval losses, learning rate, and GPU usage
 - Enable real-time visualization of training progress
 - Add proper cleanup of TensorBoard writer
+
+
+Yes, that's a good assessment! This has been a valuable learning experience. Let's summarize what we've learned:
+
+1. **Dataset Insights**:
+- SQuAD might not be ideal for Llama 3 fine-tuning with small samples
+- 100 examples were too few to learn robust Q&A patterns
+- Full dataset (100,000 examples) might yield better results
+
+2. **Learning Points**:
+- ✅ Successfully set up LoRA fine-tuning pipeline
+- ✅ Implemented TensorBoard monitoring
+- ✅ Created evaluation metrics (F1, EM)
+- ✅ Learned about prompt engineering
+- ✅ Understood training/evaluation dynamics
+
+3. **Better Project Alternatives**:
+- Instruction fine-tuning with more diverse tasks
+- Smaller, more focused datasets
+- Tasks that better match Llama's pre-training
+
+4. **Next Steps Could Be**:
+1. Try a different dataset (e.g., instruction-following)
+2. Use a smaller base model for faster iteration
+3. Focus on single-task fine-tuning with clearer objectives
+
+Would you like:
+1. Suggestions for better starter fine-tuning projects?
+2. Resources for more suitable datasets?
+3. Tips for your next ML project?

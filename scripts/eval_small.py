@@ -10,12 +10,24 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def clean_answer(text):
+    """Clean up answer text for better matching"""
+    # Remove explanations and extra context
+    text = text.split('\n')[0].split('Explanation:')[0]
+    # Remove common prefixes
+    text = text.replace('The answer is', '').replace('Answer:', '')
+    return text.strip().lower()
+
 def compute_exact_match(prediction, truth):
-    return int(prediction.strip().lower() == truth.strip().lower())
+    prediction = clean_answer(prediction)
+    truth = clean_answer(truth)
+    return int(prediction == truth)
 
 def compute_f1(prediction, truth):
-    pred_tokens = prediction.strip().lower().split()
-    truth_tokens = truth.strip().lower().split()
+    prediction = clean_answer(prediction)
+    truth = clean_answer(truth)
+    pred_tokens = prediction.split()
+    truth_tokens = truth.split()
     
     if len(pred_tokens) == 0 or len(truth_tokens) == 0:
         return int(pred_tokens == truth_tokens)
@@ -47,7 +59,13 @@ def evaluate_model(model, tokenizer, eval_dataset, num_examples=None, save_resul
         example = eval_dataset[idx]
         
         # Prepare input
-        input_text = f"Question: {example['question']}\nContext: {example['context']}\nAnswer:"
+        input_text = (
+            "Answer the question briefly using only the provided context. "
+            "Give a short, direct answer without explanations.\n\n"
+            f"Context: {example['context']}\n"
+            f"Question: {example['question']}\n"
+            "Answer:"
+        )
         inputs = tokenizer(
             input_text,
             return_tensors="pt",
@@ -60,16 +78,21 @@ def evaluate_model(model, tokenizer, eval_dataset, num_examples=None, save_resul
         with torch.no_grad():
             outputs = model.generate(
                 **inputs,
-                max_new_tokens=50,
+                max_new_tokens=20,
                 num_beams=4,
-                temperature=0.7,
+                temperature=0.3,
                 top_p=0.9,
+                no_repeat_ngram_size=3,
+                length_penalty=0.6,
                 pad_token_id=tokenizer.pad_token_id,
                 eos_token_id=tokenizer.eos_token_id
             )
         
+        # Clean up the generated answer
         generated_answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
         generated_answer = generated_answer.replace(input_text, "").strip()
+        # Remove any "Explanation:" or additional context
+        generated_answer = generated_answer.split('\n')[0].split('Explanation:')[0].strip()
         true_answer = example['answers']['text'][0]
         
         # Calculate metrics
@@ -116,7 +139,7 @@ def evaluate_model(model, tokenizer, eval_dataset, num_examples=None, save_resul
 
 def main():
     # Load model and tokenizer
-    model_path = "./fine_tuned_llama_squad_small"
+    model_path = "./fine_tuned_llama_squad_improved"
     logger.info("Loading model and tokenizer...")
     
     tokenizer = AutoTokenizer.from_pretrained(model_path)

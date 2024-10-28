@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, TrainingArguments, Trainer
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, TrainingArguments, Trainer, TrainerCallback
 from datasets import load_from_disk
 from peft import prepare_model_for_kbit_training, LoraConfig, get_peft_model
 import time
@@ -48,35 +48,53 @@ class ImprovedSQuADDataset(Dataset):
             "Answer:"
         )
         
-        # Add explicit end token to help model learn answer boundaries
         target_text = f" {example['answers']['text'][0]}</s>" if example['answers']['text'] else ""
 
-        # Tokenize with improved handling
+        # Tokenize input with padding
         inputs = self.tokenizer(
             input_text,
+            truncation=True,
             max_length=self.max_length,
-            truncation=True,
-            padding="max_length",
-            return_tensors="pt"
-        )
-        
-        targets = self.tokenizer(
-            target_text,
-            max_length=50,  # Shorter max length for answers
-            truncation=True,
-            padding="max_length",
+            padding='max_length',
             return_tensors="pt"
         )
 
+        # Tokenize target with padding and create attention mask
+        targets = self.tokenizer(
+            target_text,
+            truncation=True,
+            max_length=self.max_length,  # Use same max_length for consistency
+            padding='max_length',
+            return_tensors="pt"
+        )
+
+        # Squeeze tensors to remove batch dimension
+        input_ids = inputs['input_ids'].squeeze()
+        attention_mask = inputs['attention_mask'].squeeze()
+        labels = targets['input_ids'].squeeze()
+
+        # Ensure all tensors have the same sequence length
+        if input_ids.size(0) != labels.size(0):
+            # Pad or truncate labels to match input_ids
+            if labels.size(0) < input_ids.size(0):
+                labels = torch.nn.functional.pad(
+                    labels, 
+                    (0, input_ids.size(0) - labels.size(0)), 
+                    value=self.tokenizer.pad_token_id
+                )
+            else:
+                labels = labels[:input_ids.size(0)]
+
         return {
-            "input_ids": inputs.input_ids.squeeze(),
-            "attention_mask": inputs.attention_mask.squeeze(),
-            "labels": targets.input_ids.squeeze()
+            'input_ids': input_ids,
+            'attention_mask': attention_mask,
+            'labels': labels
         }
 
 
-class TensorBoardCallback:
+class TensorBoardCallback(TrainerCallback):
     def __init__(self, writer):
+        super().__init__()
         self.writer = writer
         self.train_step = 0
         self.eval_step = 0
@@ -85,28 +103,33 @@ class TensorBoardCallback:
         if logs is None:
             return
         
-        # Log training metrics
+        # Training metrics
         if 'loss' in logs:
             self.writer.add_scalar('train/loss', logs['loss'], self.train_step)
             if 'learning_rate' in logs:
                 self.writer.add_scalar('train/learning_rate', logs['learning_rate'], self.train_step)
             if 'grad_norm' in logs:
-                self.writer.add_scalar('train/grad_norm', logs['grad_norm'], self.train_step)
+                self.writer.add_scalar('train/gradient_norm', logs['grad_norm'], self.train_step)
+            
+            # Parse GPU memory
+            if 'gpu_memory' in logs:
+                memory_str = logs['gpu_memory']
+                if isinstance(memory_str, str):
+                    allocated = float(memory_str.split("GB allocated")[0].split(": ")[-1])
+                    reserved = float(memory_str.split("GB reserved")[0].split(", ")[-1])
+                    self.writer.add_scalar('system/gpu_allocated_gb', allocated, self.train_step)
+                    self.writer.add_scalar('system/gpu_reserved_gb', reserved, self.train_step)
+            
             self.train_step += 1
         
-        # Log evaluation metrics
+        # Evaluation metrics
         if 'eval_loss' in logs:
             self.writer.add_scalar('eval/loss', logs['eval_loss'], self.eval_step)
             if 'eval_runtime' in logs:
-                self.writer.add_scalar('eval/runtime', logs['eval_runtime'], self.eval_step)
+                self.writer.add_scalar('eval/runtime_seconds', logs['eval_runtime'], self.eval_step)
+            if 'eval_samples_per_second' in logs:
+                self.writer.add_scalar('eval/samples_per_second', logs['eval_samples_per_second'], self.eval_step)
             self.eval_step += 1
-        
-        # Log memory usage
-        if 'gpu_memory' in logs:
-            memory_str = logs['gpu_memory']
-            if isinstance(memory_str, str) and "GB allocated" in memory_str:
-                allocated = float(memory_str.split("GB allocated")[0].split(": ")[-1])
-                self.writer.add_scalar('system/gpu_memory_allocated', allocated, self.train_step)
 
 class MetricsTrainer(Trainer):
     def __init__(self, *args, **kwargs):
@@ -188,25 +211,27 @@ def main():
     # Training arguments with TensorBoard logging
     training_args = TrainingArguments(
         output_dir='./results_improved',
-        num_train_epochs=3,
+        num_train_epochs=5,
         per_device_train_batch_size=4,
         per_device_eval_batch_size=4,
         gradient_accumulation_steps=4,
-        evaluation_strategy="steps",
+        eval_strategy="steps",
         eval_steps=10,
-        logging_steps=5,
-        learning_rate=5e-5,
-        weight_decay=0.01,
+        logging_steps=1,
+        learning_rate=1e-4,
+        weight_decay=0.05,
         fp16=True,
         optim="paged_adamw_32bit",
         save_strategy="steps",
-        save_steps=50,
-        save_total_limit=2,
+        save_steps=20,
+        save_total_limit=3,
         load_best_model_at_end=True,
-        warmup_ratio=0.1,
+        warmup_ratio=0.15,
         # TensorBoard specific arguments
         logging_dir=tensorboard_dir,
         report_to=["tensorboard"],
+        lr_scheduler_type="cosine",
+        warmup_steps=50,
     )
     
     # Initialize trainer with TensorBoard callback
