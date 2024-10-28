@@ -3,6 +3,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import get_peft_model, LoraConfig, prepare_model_for_kbit_training
 import torch
 from typing import Tuple
+from config import TrainingConfig
 
 def setup_model_and_tokenizer(config: TrainingConfig) -> Tuple[Any, Any]:
     """Initialize the model and tokenizer with proper configurations"""
