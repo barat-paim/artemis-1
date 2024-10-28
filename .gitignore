@@ -32,3 +32,6 @@ ehthumbs.db
 Thumbs.db
 fine_tuned_llama_squad/
 fine_tuned_llama_squad_small/
+squad/fine_tuned_llama_squad/
+squad/fine_tuned_llama_small/
+squad/fine_tuned_llama_improved/
