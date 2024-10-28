@@ -6,6 +6,7 @@ import time
 from torch.utils.data import Dataset
 import logging
 from torch.utils.tensorboard import SummaryWriter
+import os
 from datetime import datetime
 
 # Set up logging
@@ -64,6 +65,7 @@ class ImprovedSQuADDataset(Dataset):
             "attention_mask": inputs.attention_mask.squeeze(),
             "labels": targets.input_ids.squeeze()
         }
+
 
 class TensorBoardCallback:
     def __init__(self, writer):
@@ -126,101 +128,104 @@ class MetricsTrainer(Trainer):
         super().log(logs)
 
 def main():
-    # Load dataset
+    # ... (earlier setup code remains the same) ...
     logger.info("Loading dataset...")
     squad_dataset = load_from_disk("./data/squad")
-    train_data = squad_dataset['train'].select(range(100))  # Still using 100 examples for comparison
+    train_data = squad_dataset['train'].select(range(100))
     eval_data = squad_dataset['validation'].select(range(20))
-    
-    logger.info(f"Training on {len(train_data)} examples")
+
+    logger.info(f"Training on {len(train_data)} examples, evaluating on {len(eval_data)} examples")
     logger.info(f"Evaluating on {len(eval_data)} examples")
-    
-    # Load model
+
+    # Load Model
     logger.info("Loading model...")
     model_path = "./llama_3_2_1b_model"
-    logger.info(f"Initial {monitor_gpu()}")
-    
+    # initial monitoring gpu
+    logger.info(f"Before loading model: {monitor_gpu()}")
     quantization_config = BitsAndBytesConfig(
         load_in_8bit=True,
         llm_int8_threshold=6.0,
-        llm_int8_has_fp16_weight=False,
+        llm_int8_enable_fp32_cpu_offload=True
     )
-    
+
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    
+
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         quantization_config=quantization_config,
         device_map="auto",
         torch_dtype=torch.float16,
     )
+
     logger.info(f"After loading model: {monitor_gpu()}")
-    
-    # Setup LoRA with adjusted parameters
+
+    # Setup LoRa
     model = prepare_model_for_kbit_training(model)
-    peft_config = LoraConfig(
-        r=16,  # Increased from 8
-        lora_alpha=32,  # Increased from 16
-        target_modules=["q_proj", "k_proj", "v_proj"],  # Added k_proj
-        lora_dropout=0.1,  # Increased dropout
+    lora_config = LoraConfig(
+        r=16,
+        lora_alpha=32,
+        target_modules=["q_proj", "k_proj", "v_proj"],
+        lora_dropout=0.1,
         bias="none",
         task_type="CAUSAL_LM"
     )
-    model = get_peft_model(model, peft_config)
+    model = get_peft_model(model, lora_config)
     logger.info(f"After LoRA setup: {monitor_gpu()}")
-    
-    # Prepare datasets with improved format
+
     train_dataset = ImprovedSQuADDataset(train_data, tokenizer)
     eval_dataset = ImprovedSQuADDataset(eval_data, tokenizer)
     
-    # Training arguments with adjusted parameters
+    # Training arguments with TensorBoard logging
     training_args = TrainingArguments(
         output_dir='./results_improved',
-        num_train_epochs=3,  # Increased from 2
-        per_device_train_batch_size=12,
-        per_device_eval_batch_size=12,
-        gradient_accumulation_steps=4,  # Increased from 2
+        num_train_epochs=3,
+        per_device_train_batch_size=4,
+        per_device_eval_batch_size=4,
+        gradient_accumulation_steps=4,
         evaluation_strategy="steps",
         eval_steps=10,
         logging_steps=5,
-        learning_rate=5e-5,  # Adjusted from 1e-4
-        weight_decay=0.01,  # Added weight decay
+        learning_rate=5e-5,
+        weight_decay=0.01,
         fp16=True,
         optim="paged_adamw_32bit",
         save_strategy="steps",
         save_steps=50,
         save_total_limit=2,
         load_best_model_at_end=True,
-        warmup_ratio=0.1,  # Added warmup
-        logging_callback=TensorBoardCallback(writer),
+        warmup_ratio=0.1,
+        # TensorBoard specific arguments
+        logging_dir=tensorboard_dir,
         report_to=["tensorboard"],
     )
     
-# Initialize trainer with TensorBoardCallback
-trainer = MetricsTrainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-    eval_dataset=eval_dataset,
-    callbacks=[TensorBoardCallback(writer)]
-)
-try:
-    logger.info("Starting training...")
-    logger.info(f"Before training: {monitor_gpu()}")
-    trainer.train()
-    logger.info(f"After training: {monitor_gpu()}")
-   
-   # Save the model
-    logger.info("Saving model...")
-    model.save_pretrained("./fine_tuned_llama_squad_results_improved")
-    tokenizer.save_pretrained("./fine_tuned_llama_squad_improved")
-    logger.info("Model saved successfully")
-
-finally:
-    writer.close()
-    logger.info("TensorBoard writer closed")
+    # Initialize trainer with TensorBoard callback
+    trainer = MetricsTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        callbacks=[TensorBoardCallback(writer)]
+    )
+    
+    try:
+        # Train and track metrics
+        logger.info("Starting training...")
+        logger.info(f"Before training: {monitor_gpu()}")
+        trainer.train()
+        logger.info(f"After training: {monitor_gpu()}")
+        
+        # Save the model
+        logger.info("Saving model...")
+        model.save_pretrained("./fine_tuned_llama_squad_improved")
+        tokenizer.save_pretrained("./fine_tuned_llama_squad_improved")
+        
+    finally:
+        # Close TensorBoard writer
+        writer.close()
+        logger.info("TensorBoard writer closed")
 
 if __name__ == "__main__":
     main()
