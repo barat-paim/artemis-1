@@ -31,3 +31,4 @@ llama_3_2_1b_model/
 ehthumbs.db
 Thumbs.db
 fine_tuned_llama_squad/
+fine_tuned_llama_squad_small/
