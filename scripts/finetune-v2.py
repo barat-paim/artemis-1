@@ -13,6 +13,14 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Add this function near the top of the file, after imports
+def monitor_gpu():
+    """Monitor GPU memory usage."""
+    if torch.cuda.is_available():
+        memory_allocated = torch.cuda.memory_allocated() / 1e9  # Convert to GB
+        memory_reserved = torch.cuda.memory_reserved() / 1e9
+        return f"GPU Memory: {memory_allocated:.1f}GB allocated, {memory_reserved:.1f}GB reserved"
+    return "GPU not available"
 # Initialize TensorBoard writer
 run_name = datetime.now().strftime("%Y%m%d_%H%M%S")
 tensorboard_dir = os.path.join("./runs", f"squad_finetune_{run_name}")
