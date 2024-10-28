@@ -4,7 +4,8 @@ from transformers import (
     AutoTokenizer,
     TrainingArguments,
     Trainer,
-    DataCollatorForLanguageModeling
+    DataCollatorForLanguageModeling,
+    BitsAndBytesConfig
 )
 from datasets import load_from_disk
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
@@ -39,15 +40,14 @@ def load_tokenizer_and_model(model_path):
     # Load model with quantization
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        load_in_4bit=True,
-        torch_dtype=torch.float16,
         device_map="auto",
         quantization_config=BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_compute_dtype=torch.float16,
             bnb_4bit_quant_type="nf4",
             bnb_4bit_use_double_quant=True,
-        )
+        ),
+        torch_dtype=torch.float16
     )
     
     logger.info(f"After loading model: {get_gpu_memory()}")
@@ -114,7 +114,7 @@ def get_gpu_memory():
 
 def main():
     # Setup
-    model_path = "./llama_3_2_1b_model"
+    model_path = "./model/llama_3_2_1b_model"
     tensorboard_dir = setup_tensorboard()
     
     # Load model and tokenizer
