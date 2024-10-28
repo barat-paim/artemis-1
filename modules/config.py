@@ -11,10 +11,12 @@ class TrainingConfig:
 
     # Training Settings
     batch_size: int = 8
+    eval_batch_size: int = 8
     num_epochs: int = 3
     learning_rate: float = 2e-5
     weight_decay: float = 0.01
     warmup_ratio: float = 0.1
+    save_steps: int = 500
 
     # Hardware Settings
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
