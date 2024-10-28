@@ -1,18 +1,24 @@
 import torch
-import os
 from transformers import (
     AutoTokenizer, 
     AutoModelForCausalLM, 
     BitsAndBytesConfig,
-    TrainingArguments
+    TrainingArguments,
+    Trainer
 )
 from datasets import load_from_disk
 from peft import prepare_model_for_kbit_training, LoraConfig, get_peft_model
-from torch.utils.data import Dataset
 import time
 from tqdm import tqdm
 
-class SQuADDataset(Dataset):
+def monitor_gpu():
+    if torch.cuda.is_available():
+        memory_allocated = torch.cuda.memory_allocated() / 1e9  # Convert to GB
+        memory_reserved = torch.cuda.memory_reserved() / 1e9
+        return f"GPU Memory: {memory_allocated:.1f}GB allocated, {memory_reserved:.1f}GB reserved"
+    return "GPU not available"
+
+class SQuADDataset(torch.utils.data.Dataset):
     def __init__(self, dataset, tokenizer, max_length=512):
         self.dataset = dataset
         self.tokenizer = tokenizer
@@ -39,12 +45,16 @@ def main():
     # Load small subset of SQuAD
     print("Loading dataset...")
     squad_dataset = load_from_disk("./data/squad")
-    train_data = squad_dataset['train'].select(range(100))
+    train_data = squad_dataset['train'].select(range(100))  # Take only 100 examples
     eval_data = squad_dataset['validation'].select(range(20))
     
-    # Load smallest LLaMA model with 8-bit quantization
+    print(f"Training on {len(train_data)} examples")
+    print(f"Evaluating on {len(eval_data)} examples")
+    
+    # Load smallest LLaMA model
     print("Loading model...")
-    model_path = "./llama_3_2_1b_model"  # Adjust to your smallest LLaMA path
+    model_path = "./llama_3_2_1b_model"
+    print(f"Initial {monitor_gpu()}")
     
     quantization_config = BitsAndBytesConfig(
         load_in_8bit=True,
@@ -62,6 +72,7 @@ def main():
         device_map="auto",
         torch_dtype=torch.float16,
     )
+    print(f"After loading model: {monitor_gpu()}")
     
     # Setup LoRA
     model = prepare_model_for_kbit_training(model)
@@ -74,6 +85,7 @@ def main():
         task_type="CAUSAL_LM"
     )
     model = get_peft_model(model, peft_config)
+    print(f"After LoRA setup: {monitor_gpu()}")
     
     # Prepare datasets
     train_dataset = SQuADDataset(train_data, tokenizer)
@@ -82,7 +94,7 @@ def main():
     # Training arguments
     training_args = TrainingArguments(
         output_dir='./results',
-        num_train_epochs=2,
+        num_train_epochs=2,  # Reduced epochs
         per_device_train_batch_size=4,
         per_device_eval_batch_size=4,
         gradient_accumulation_steps=2,
@@ -107,13 +119,16 @@ def main():
         def log(self, logs):
             logs = logs.copy()
             # Add memory usage
-            if torch.cuda.is_available():
-                logs["gpu_memory_used_gb"] = torch.cuda.memory_allocated() / 1e9
+            logs["gpu_memory"] = monitor_gpu()
             
             # Add training speed
             if self.state.global_step > 0:
                 elapsed_time = time.time() - self.start_time
-                logs["training_samples_per_second"] = self.state.global_step * self.args.per_device_train_batch_size / elapsed_time
+                logs["training_samples_per_second"] = (
+                    self.state.global_step * 
+                    self.args.per_device_train_batch_size / 
+                    elapsed_time
+                )
             
             super().log(logs)
     
@@ -127,7 +142,9 @@ def main():
     
     # Train and track metrics
     print("Starting training...")
+    print(f"Before training: {monitor_gpu()}")
     trainer.train()
+    print(f"After training: {monitor_gpu()}")
     
     # Save the model
     print("Saving model...")
