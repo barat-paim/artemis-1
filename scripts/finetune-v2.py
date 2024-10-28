@@ -213,14 +213,14 @@ try:
     logger.info(f"After training: {monitor_gpu()}")
    
    # Save the model
-   logger.info("Saving model...")
-   model.save_pretrained("./fine_tuned_llama_squad_results_improved")
-   tokenizer.save_pretrained("./fine_tuned_llama_squad_improved")
-   logger.info("Model saved successfully")
+    logger.info("Saving model...")
+    model.save_pretrained("./fine_tuned_llama_squad_results_improved")
+    tokenizer.save_pretrained("./fine_tuned_llama_squad_improved")
+    logger.info("Model saved successfully")
 
-   finally:
-       writer.close()
-       logger.info("TensorBoard writer closed")
+finally:
+    writer.close()
+    logger.info("TensorBoard writer closed")
 
 if __name__ == "__main__":
     main()
