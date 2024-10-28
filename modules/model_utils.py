@@ -1,5 +1,5 @@
 # model_utils.py
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from peft import get_peft_model, LoraConfig, prepare_model_for_kbit_training
 import torch
 from typing import Tuple, Any
@@ -11,8 +11,9 @@ def setup_model_and_tokenizer(config: TrainingConfig) -> Tuple[Any, Any]:
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model = AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForSequenceClassification.from_pretrained(
         config.model_name,
+        num_labels=3,
         torch_dtype=config.dtype,
         device_map="auto"
     )
@@ -25,7 +26,7 @@ def setup_model_and_tokenizer(config: TrainingConfig) -> Tuple[Any, Any]:
             target_modules=config.lora_target_modules,
             lora_dropout=config.lora_dropout,
             bias="none",
-            task_type="CAUSAL_LM"
+            task_type="SEQ_CLS"
         )
         model = get_peft_model(model, lora_config)
     return model, tokenizer

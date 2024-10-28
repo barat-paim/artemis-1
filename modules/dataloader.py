@@ -22,17 +22,20 @@ class BaseDataset(Dataset):
 class TextClassificationDataset(BaseDataset):
     def __getitem__(self, idx):
         item = self.data[idx]
+        
+        # Format input text
         inputs = self.tokenizer(
             item['text'],
             max_length=self.config.model_max_length,
-            padding="max_length",
+            padding='max_length',
             truncation=True,
-            return_tensors="pt"
+            return_tensors='pt'
         )
+        
         return {
-            "input_ids": inputs['input_ids'].squeeze(),
-            "attention_mask": inputs['attention_mask'].squeeze(),
-            "labels": torch.tensor(item['label'])   
+            'input_ids': inputs['input_ids'].squeeze(),
+            'attention_mask': inputs['attention_mask'].squeeze(),
+            'labels': torch.tensor(item['label'], dtype=torch.long)
         }
     
     def collate_fn(self, batch: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
