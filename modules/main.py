@@ -97,11 +97,24 @@ def run_training(stdscr):
             # Save final results before cleanup
             dashboard._save_final_results()
             
+            # Run inference tests after dashboard cleanup
+            dashboard.set_status("Running inference tests...")
+            inference_results = test_model(model, tokenizer, config)
+            
+            # Update dashboard with inference results
+            current_y = len(dashboard.eval_history) + 20  # Approximate position after other sections
+            dashboard._draw_inference_results(current_y, 2, inference_results)
+            dashboard.stdscr.refresh()
+            
+            # Show completion message
+            dashboard.set_status("Training and inference completed successfully!")
+            time.sleep(5)  # Give more time to see inference results
+            
+            # Save final results before cleanup
+            dashboard._save_final_results()
+            
             # Clean up curses exactly once
             curses.endwin()
-            
-            # Run inference tests after dashboard cleanup
-            test_model(model, tokenizer, config)
             
         except KeyboardInterrupt:
             dashboard.set_status("PROCESS INTERRUPTED BY USER")

@@ -24,3 +24,7 @@ Version: 0.3.3
 Title: color code gradient gauge display
 What went wrong?: alerts are not visible and inferrable
 What was fixed?: adds more granular warning levels, uses blinking text for crtical alerts, adds a helpful message of warning when gradients are too high, uses consistent color codings with the rest of the dashboard
+Version: 0.3.4
+Title: show inference within dashboard
+What went wrong?: dashboard ends after training to show the inference
+What was fixed?: keep the dashboard running during inference, give users time to see the results, display the inference results in the dashboard, clean up properly after showing all information. The Changes made in the making test_model return results instead of printing. Increasing results to the dashboard display. Increasing the viewing time before cleanup. Maintaining dashboard until arell the results are shown

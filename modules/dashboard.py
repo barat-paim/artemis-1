@@ -18,6 +18,7 @@ class TrainingDashboard:
         self.training_start_time = time.time()
         self.eval_history = []
 
+    #### section for setting up the colors ####
     def setup_colors(self):
         curses.start_color()
         curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
@@ -25,19 +26,23 @@ class TrainingDashboard:
         curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)
         curses.init_pair(4, curses.COLOR_CYAN, curses.COLOR_BLACK)
         
+    #### section for setting the status message ####
     def set_status(self, message: str):
         self.status_message = message
         self._draw_dashboard()
         
+    #### section for drawing the section header ####
     def _draw_section_header(self, y: int, x: int, title: str):
         self.stdscr.addstr(y, x, f"═══ {title} ", curses.color_pair(4) | curses.A_BOLD)
         remaining_width = self.max_x - (x + len(title) + 5)
         self.stdscr.addstr(y, x + len(title) + 5, "═" * remaining_width, curses.color_pair(4))
         
+    #### section for saving the final results ####
     def cleanup(self):
         """Save final results"""
         self._save_final_results()
         
+    #### section for saving the final results to results.md ####
     def _save_final_results(self):
         if not self.metrics_history:
             return
@@ -54,6 +59,7 @@ class TrainingDashboard:
             f.write(f"- F1 Score: {eval_metrics.get('eval_f1', 0):.2%}\n")
             f.write(f"- Training Time: {final_metrics.get('time_elapsed', 0)/60:.1f} minutes\n")
             
+    #### section for drawing the dashboard ####
     def _draw_dashboard(self):
         self.stdscr.clear()
         
@@ -125,7 +131,8 @@ class TrainingDashboard:
                                       self.status_message)
         
         self.stdscr.refresh()
-
+        
+    #### section for defining the dashboard elements ####
     def update_metrics(self, metrics: Dict[str, float]):
         """Update metrics and redraw dashboard"""
         self.metrics_history.append(metrics)
@@ -227,3 +234,14 @@ class TrainingDashboard:
         minutes = int((seconds % 3600) // 60)
         seconds = int(seconds % 60)
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    def _draw_inference_results(self, y: int, x: int, results: List[Dict]):
+        """Draw inference results in dashboard"""
+        self._draw_section_header(y, 0, "Inference Results")
+        for i, result in enumerate(results):
+            text = result['text'][:50] + "..." if len(result['text']) > 50 else result['text']
+            pred = result['prediction']
+            conf = result['confidence']
+            self.stdscr.addstr(y + i + 1, x, f"{text}")
+            self.stdscr.addstr(y + i + 1, x + 55, f"{pred} ({conf:.1f}%)", 
+                              curses.color_pair(1) if conf > 70 else curses.color_pair(3))
