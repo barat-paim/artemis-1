@@ -20,3 +20,7 @@ Version: 0.3.2
 Title: multiple curses clean() in the modules
 What went wrong?: multiple curses clean executes and interupts training
 What was fixed?: curses.endwin() is called exactly once. final results are saved before cleanup. terminal is properly stored before running inference. error handling still properly cleans up the terminal
+Version: 0.3.3
+Title: color code gradient gauge display
+What went wrong?: alerts are not visible and inferrable
+What was fixed?: adds more granular warning levels, uses blinking text for crtical alerts, adds a helpful message of warning when gradients are too high, uses consistent color codings with the rest of the dashboard

@@ -149,14 +149,30 @@ class TrainingDashboard:
         self.stdscr.addstr(y, x + width + 12, f"{value:.4f} ({improvement:.1f}% improved)")
 
     def _draw_gradient_gauge(self, y: int, x: int, gradient_norm: float):
-        """Draw a gauge showing gradient norm status"""
-        status = "GOOD" if gradient_norm < 1.0 else "HIGH" if gradient_norm < 10.0 else "ALERT"
-        color = (curses.color_pair(1) if status == "GOOD" 
-                else curses.color_pair(3) if status == "HIGH"
-                else curses.color_pair(2))
+        """Draw a gauge showing gradient norm status with enhanced color coding"""
+        if gradient_norm < 1.0:
+            status = "GOOD"
+            color = curses.color_pair(1)  # Green
+        elif gradient_norm < 5.0:
+            status = "WARN"
+            color = curses.color_pair(3)  # Yellow
+        elif gradient_norm < 10.0:
+            status = "HIGH"
+            color = curses.color_pair(2)  # Red
+        else:
+            status = "ALERT"
+            color = curses.color_pair(2) | curses.A_BLINK  # Blinking Red
         
+        # Draw the label
         self.stdscr.addstr(y, x, f"Gradient Norm: {gradient_norm:.2f} ")
+        
+        # Draw the status with color
         self.stdscr.addstr(f"[{status}]", color | curses.A_BOLD)
+        
+        # Add warning message for high gradients
+        if gradient_norm >= 5.0:
+            warning = " (Consider reducing learning rate)"
+            self.stdscr.addstr(warning, curses.color_pair(3))
 
     def _draw_early_stopping(self, y: int, x: int, steps_without_improvement: int, patience: int):
         """Draw early stopping progress"""
