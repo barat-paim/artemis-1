@@ -93,3 +93,39 @@ class TrainingDashboard:
         """Update metrics and redraw dashboard"""
         self.metrics_history.append(metrics)
         self._draw_dashboard()
+
+    def _draw_speedometer(self, y: int, x: int, value: float, max_value: float, label: str):
+        """Draw a speedometer-style progress bar"""
+        width = 30
+        filled = int(width * min(value / max_value, 1.0))
+        bar = "█" * filled + "░" * (width - filled)
+        percentage = value / max_value * 100 if max_value != 0 else 0
+        
+        self.stdscr.addstr(y, x, f"{label:<10}")
+        self.stdscr.addstr(y, x + 10, f"[{bar}]")
+        self.stdscr.addstr(y, x + width + 12, f"{value:.4f} ({percentage:.1f}%)")
+
+    def _draw_gradient_gauge(self, y: int, x: int, gradient_norm: float):
+        """Draw a gauge showing gradient norm status"""
+        status = "GOOD" if gradient_norm < 1.0 else "HIGH" if gradient_norm < 10.0 else "ALERT"
+        color = (curses.color_pair(1) if status == "GOOD" 
+                else curses.color_pair(3) if status == "HIGH"
+                else curses.color_pair(2))
+        
+        self.stdscr.addstr(y, x, f"Gradient Norm: {gradient_norm:.2f} ")
+        self.stdscr.addstr(f"[{status}]", color | curses.A_BOLD)
+
+    def _draw_early_stopping(self, y: int, x: int, steps_without_improvement: int, patience: int):
+        """Draw early stopping progress"""
+        width = 20
+        remaining = patience - steps_without_improvement
+        filled = int(width * (steps_without_improvement / patience))
+        bar = "█" * filled + "░" * (width - filled)
+        
+        color = (curses.color_pair(1) if remaining > patience // 2
+                else curses.color_pair(3) if remaining > patience // 4
+                else curses.color_pair(2))
+        
+        self.stdscr.addstr(y, x, "Early Stop: ")
+        self.stdscr.addstr(f"[{bar}] ")
+        self.stdscr.addstr(f"{remaining}/{patience}", color | curses.A_BOLD)
