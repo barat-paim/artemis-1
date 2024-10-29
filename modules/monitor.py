@@ -56,7 +56,5 @@ class TrainingMonitor:
             json.dump(self.metrics_history, f)
     
     def cleanup(self):
-        """Cleanup resources and restore terminal"""
-        if self.dashboard:
-            self.dashboard.cleanup()
-            self.dashboard = None
+        """Cleanup resources"""
+        self.dashboard = None

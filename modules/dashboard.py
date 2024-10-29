@@ -35,7 +35,7 @@ class TrainingDashboard:
         self.stdscr.addstr(y, x + len(title) + 5, "═" * remaining_width, curses.color_pair(4))
         
     def cleanup(self):
-        curses.endwin()
+        """Save final results"""
         self._save_final_results()
         
     def _save_final_results(self):

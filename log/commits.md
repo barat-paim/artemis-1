@@ -16,3 +16,7 @@ Version: 0.3.1
 Title: dashboard includes evaluation entries, prevent keyError
 What went wrong?: keyError stops training in between
 What was fixed?: draw_eval_table has get() to to handle missing metrics
+Version: 0.3.2
+Title: multiple curses clean() in the modules
+What went wrong?: multiple curses clean executes and interupts training
+What was fixed?: curses.endwin() is called exactly once. final results are saved before cleanup. terminal is properly stored before running inference. error handling still properly cleans up the terminal

@@ -94,8 +94,11 @@ def run_training(stdscr):
             dashboard.set_status("Training completed successfully!")
             time.sleep(2)  # Give time to see final status
             
-            # Cleanup only once at the end
-            monitor.cleanup()
+            # Save final results before cleanup
+            dashboard._save_final_results()
+            
+            # Clean up curses exactly once
+            curses.endwin()
             
             # Run inference tests after dashboard cleanup
             test_model(model, tokenizer, config)
@@ -105,13 +108,13 @@ def run_training(stdscr):
         except Exception as e:
             dashboard.set_status(f"Error occurred: {str(e)}")
             time.sleep(2)  # Give time to see error message
-            dashboard.cleanup()
+            curses.endwin()
 
     except Exception as e:
         if 'dashboard' in locals():
             dashboard.set_status(f"Error occurred: {str(e)}")
             time.sleep(2)  # Give time to see error message
-            dashboard.cleanup()
+            curses.endwin()
         raise e
 
 def main():
