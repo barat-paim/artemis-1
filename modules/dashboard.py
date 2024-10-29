@@ -59,7 +59,7 @@ class TrainingDashboard:
             f.write(f"- F1 Score: {eval_metrics.get('eval_f1', 0):.2%}\n")
             f.write(f"- Training Time: {final_metrics.get('time_elapsed', 0)/60:.1f} minutes\n")
             
-    #### section for drawing the dashboard ####
+    #### DRAW DASHBOARD ####
     def _draw_dashboard(self):
         self.stdscr.clear()
         
@@ -129,6 +129,26 @@ class TrainingDashboard:
                                       current_metrics.get('current_step', 0),
                                       self.config.max_steps,
                                       self.status_message)
+            
+            # Draw validation metrics
+            if any('eval_accuracy' in m for m in self.metrics_history):
+                val_y = status_y + 4
+                self._draw_section_header(val_y, 0, "Validation Metrics")
+                latest_eval = next((m for m in reversed(self.metrics_history) 
+                                  if 'eval_accuracy' in m), {})
+                
+                self.stdscr.addstr(val_y + 1, 2, f"Accuracy: {latest_eval.get('eval_accuracy', 0):.2%}")
+                self.stdscr.addstr(val_y + 2, 2, f"F1 Score: {latest_eval.get('eval_f1', 0):.2%}")
+                
+                # Draw loss trend plot
+                loss_history = [m.get('loss', 0) for m in self.metrics_history[-10:]]
+                plot = self._create_ascii_plot(loss_history)
+                self._draw_section_header(val_y + 4, 0, "Loss Trend")
+                for i, line in enumerate(plot):
+                    self.stdscr.addstr(val_y + 5 + i, 2, line)
+                
+                # Draw keyboard shortcuts at the bottom
+                self._draw_keyboard_shortcuts(self.max_y - 3, 2)
         
         self.stdscr.refresh()
         
@@ -245,3 +265,31 @@ class TrainingDashboard:
             self.stdscr.addstr(y + i + 1, x, f"{text}")
             self.stdscr.addstr(y + i + 1, x + 55, f"{pred} ({conf:.1f}%)", 
                               curses.color_pair(1) if conf > 70 else curses.color_pair(3))
+
+    def _create_ascii_plot(self, values: List[float], width: int = 30, height: int = 5) -> List[str]:
+        """Create an ASCII plot of the loss trend"""
+        if not values:
+            return []
+            
+        # Normalize values to fit height
+        min_val, max_val = min(values), max(values)
+        range_val = max_val - min_val if max_val != min_val else 1
+        normalized = [(h - min_val) / range_val * (height - 1) for h in values]
+        
+        # Create the plot
+        plot = []
+        for h in range(height - 1, -1, -1):
+            line = ""
+            for n in normalized:
+                if n >= h:
+                    line += "█"
+                else:
+                    line += "░"
+            plot.append(line)
+        
+        return plot
+
+    def _draw_keyboard_shortcuts(self, y: int, x: int):
+        """Draw keyboard shortcuts section"""
+        self.stdscr.addstr(y, x, "Keyboard Shortcuts:", curses.A_BOLD)
+        self.stdscr.addstr(y + 1, x, "q: Quit  |  s: Save Checkpoint  |  p: Pause/Resume")

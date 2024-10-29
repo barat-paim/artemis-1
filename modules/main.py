@@ -113,6 +113,21 @@ def run_training(stdscr):
             # Save final results before cleanup
             dashboard._save_final_results()
             
+            # Setup keyboard handling
+            stdscr.nodelay(1)  # Non-blocking input
+            while True:
+                try:
+                    key = stdscr.getch()
+                    if key == ord('q'):
+                        dashboard.set_status("Stopping training...")
+                        break
+                    elif key == ord('s'):
+                        dashboard.set_status("Saving checkpoint...")
+                        trainer.save_checkpoint()
+                        dashboard.set_status("Checkpoint saved")
+                except curses.error:
+                    pass
+            
             # Clean up curses exactly once
             curses.endwin()
             
