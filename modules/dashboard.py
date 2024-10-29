@@ -88,3 +88,8 @@ class TrainingDashboard:
                 self.stdscr.addstr(19, 2, self.status_message)
         
         self.stdscr.refresh()
+        
+    def update_metrics(self, metrics: Dict[str, float]):
+        """Update metrics and redraw dashboard"""
+        self.metrics_history.append(metrics)
+        self._draw_dashboard()

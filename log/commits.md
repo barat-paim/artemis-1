@@ -1,2 +1,2 @@
-What went wrong?: exiting instructions for dashboard were not created
-What was fixed?: exit functinos, clear section header, better aligned metrics, status message section, proper clean ved, saved results on ./log/results.md
+What went wrong?: error occured because we were calling update_metrics in the monitor without updating the the training metrics in dashboard
+What was fixed?: store the new metrics in history, trigger a dashboard redraw
