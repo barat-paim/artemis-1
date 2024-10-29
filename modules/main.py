@@ -10,6 +10,36 @@ from trainer import Trainer
 from dataloader import TextClassificationDataset
 from datasets import load_dataset
 
+def test_predictions(model, tokenizer, config):
+    """Test the model with some example texts"""
+    model.eval()
+    test_texts = [
+        "This movie was amazing!",
+        "I didn't like it at all.",
+        "It was okay, nothing special."
+    ]
+    
+    print("\nTesting model predictions:")
+    for text in test_texts:
+        inputs = tokenizer(
+            text,
+            max_length=config.model_max_length,
+            padding='max_length',
+            truncation=True,
+            return_tensors='pt'
+        ).to(config.device)
+        
+        with torch.no_grad():
+            outputs = model(**inputs)
+            prediction = torch.argmax(outputs.logits, dim=-1)
+            probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+            
+        sentiment = ['negative', 'neutral', 'positive'][prediction.item()]
+        confidence = probs[0][prediction.item()].item()
+        
+        print(f"\nText: {text}")
+        print(f"Predicted sentiment: {sentiment} (confidence: {confidence:.2%})")
+
 def main():
     # initialize config
     config = TrainingConfig(
@@ -68,6 +98,9 @@ def main():
     except Exception as e:
         print(f"Error during training: {str(e)}")
         return
+
+    # Add prediction testing after training
+    test_predictions(model, tokenizer, config)
 
 if __name__ == "__main__":
     main()
