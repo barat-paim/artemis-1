@@ -16,9 +16,8 @@ class TrainingDashboard:
         self.results_file = Path("./logs/results.md")
         self.results_file.parent.mkdir(exist_ok=True)
         self.training_start_time = time.time()
-        self.config = config
-        self.eval_history = []  # To store evaluation metrics history
-        
+        self.eval_history = []
+
     def setup_colors(self):
         curses.start_color()
         curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)

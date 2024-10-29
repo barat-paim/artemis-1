@@ -8,3 +8,7 @@ Version: 0.2.1
 Title: fix: dashboard improvements
 What went wrong?: code misalignment
 What was fixed?: speedometer, gradient gauge, early stopping in dashboard.py
+Version: 0.3.0
+Title: fix: replace print with dashboard statuses
+What went wrong?: circular imports, dashboard status instead of print, functional bugs
+What was fixed?: main.py creates both dashboard & monitor (which receives dashboard as a parameters)[D[D[D[Dtrainer.py uses monitor for logging

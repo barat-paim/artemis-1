@@ -9,15 +9,14 @@ from typing import Dict, Any
 from config import TrainingConfig
 import curses
 import sys
-from dashboard import TrainingDashboard
 
 class TrainingMonitor:
-    def __init__(self, config: TrainingConfig):
+    def __init__(self, config: TrainingConfig, dashboard=None):
         self.config = config
         self.start_time = time.time()
         self.metrics_history = []
         self.setup_logging()
-        self.dashboard = None
+        self.dashboard = dashboard
         
         # Initialize dashboard if in interactive mode
         if sys.stdout.isatty():
