@@ -9,47 +9,20 @@ from monitor import TrainingMonitor
 from trainer import Trainer
 from dataloader import TextClassificationDataset
 from datasets import load_dataset
-
-def test_predictions(model, tokenizer, config):
-    """Test the model with some example texts"""
-    model.eval()
-    test_texts = [
-        "This movie was amazing!",
-        "I didn't like it at all.",
-        "It was okay, nothing special."
-    ]
-    
-    print("\nTesting model predictions:")
-    for text in test_texts:
-        inputs = tokenizer(
-            text,
-            max_length=config.model_max_length,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt'
-        ).to(config.device)
-        
-        with torch.no_grad():
-            outputs = model(**inputs)
-            prediction = torch.argmax(outputs.logits, dim=-1)
-            probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
-            
-        sentiment = ['negative', 'neutral', 'positive'][prediction.item()]
-        confidence = probs[0][prediction.item()].item()
-        
-        print(f"\nText: {text}")
-        print(f"Predicted sentiment: {sentiment} (confidence: {confidence:.2%})")
+from inference import test_model
 
 def main():
     # initialize config
     config = TrainingConfig(
         model_name="facebook/opt-125m", # path to the model
-        train_size=100,
-        eval_size=20,
-        batch_size=8,
-        num_epochs=4,
+        train_size=1000,
+        eval_size=100,
+        batch_size=16,
+        num_epochs=3,
         model_max_length=512,
-        learning_rate=1e-4,
+        learning_rate=2e-5,
+        weight_decay=0.01,
+        warmup_ratio=0.1,
         output_dir="./test_run",
         device="cuda" if torch.cuda.is_available() else "cpu",
     )
@@ -99,8 +72,10 @@ def main():
         print(f"Error during training: {str(e)}")
         return
 
-    # Add prediction testing after training
-    test_predictions(model, tokenizer, config)
+    # Test model predictions
+    print("*" * 20)
+    print("\nTesting model predictions...")
+    test_model(model, tokenizer, config)
 
 if __name__ == "__main__":
     main()
