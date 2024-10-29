@@ -115,3 +115,5 @@ Reference:
 2. Review final metrics and inference results
 3. Press 'q' to exit when ready
 4. Final results are saved to `./logs/results.md
+
+![alt text](image.png)
