@@ -136,13 +136,17 @@ class TrainingDashboard:
     def _draw_speedometer(self, y: int, x: int, value: float, max_value: float, label: str):
         """Draw a speedometer-style progress bar"""
         width = 30
-        filled = int(width * min(value / max_value, 1.0))
+        # invert the fill ratio since lower loss is better
+        normalized_value = max(0, min(1, value / max_value))
+        inverted_fill = 1 - normalized_value
+        filled = int(width * inverted_fill)
         bar = "█" * filled + "░" * (width - filled)
-        percentage = value / max_value * 100 if max_value != 0 else 0
-        
+
+        # show percentage improvement rather than raw percentage
+        improvement = (1 - normalized_value) * 100
         self.stdscr.addstr(y, x, f"{label:<10}")
         self.stdscr.addstr(y, x + 10, f"[{bar}]")
-        self.stdscr.addstr(y, x + width + 12, f"{value:.4f} ({percentage:.1f}%)")
+        self.stdscr.addstr(y, x + width + 12, f"{value:.4f} ({improvement:.1f}% improved)")
 
     def _draw_gradient_gauge(self, y: int, x: int, gradient_norm: float):
         """Draw a gauge showing gradient norm status"""
@@ -179,10 +183,11 @@ class TrainingDashboard:
         # Draw rows
         for row_idx, metrics in enumerate(self.eval_history[-10:]):  # Show last 10 entries
             row_y = y + row_idx + 1
-            self.stdscr.addstr(row_y, 2, f"{metrics['step']:>6}")
-            self.stdscr.addstr(row_y, 2 + col_width, f"{metrics['loss']:>8.4f}")
-            self.stdscr.addstr(row_y, 2 + col_width * 2, f"{metrics['learning_rate']:>8.6f}")
-            self.stdscr.addstr(row_y, 2 + col_width * 3, f"{metrics['gradient_norm']:>8.2f}")
+            # Use get() with default values to handle missing metrics
+            self.stdscr.addstr(row_y, 2, f"{metrics.get('step', 0):>6}")
+            self.stdscr.addstr(row_y, 2 + col_width, f"{metrics.get('loss', 0):>8.4f}")
+            self.stdscr.addstr(row_y, 2 + col_width * 2, f"{metrics.get('learning_rate', 0):>8.6f}")
+            self.stdscr.addstr(row_y, 2 + col_width * 3, f"{metrics.get('gradient_norm', 0):>8.2f}")
 
     def _draw_progress_bar(self, y: int, x: int, current: int, total: int, message: str):
         """Draw a progress bar with message and time estimation"""

@@ -107,6 +107,9 @@ class Trainer:
                 'loss': metrics['eval_loss'],
                 'eval_accuracy': metrics['eval_accuracy'],
                 'eval_f1': metrics['eval_f1'],
+                'step': self.global_step,
+                'learning_rate': self.scheduler.get_last_lr()[0],
+                'gradient_norm': self._compute_gradient_norm(),
                 'is_eval_step': True  # Important to mark as eval step
             }
             self.monitor.log_metrics(eval_metrics, self.global_step)
@@ -191,7 +194,8 @@ class Trainer:
                         self.no_improve_count += 1
                         
                     if self.no_improve_count >= self.patience:
-                        print("\nEarly stopping triggered!")
+                        if self.monitor and self.monitor.dashboard:
+                            self.monitor.dashboard.set_status("Early stopping triggered!")
                         return
                         
                     self.global_step += 1
@@ -202,14 +206,10 @@ class Trainer:
                     self.monitor.log_metrics({'epoch_loss': avg_epoch_loss}, self.global_step)
 
         except KeyboardInterrupt:
-            print("\nTraining interrupted by user")
-            if self.monitor:
-                self.monitor.cleanup()
+            if self.monitor and self.monitor.dashboard:
+                self.monitor.dashboard.set_status("Training interrupted by user")
             return
         except Exception as e:
-            if self.monitor:
-                self.monitor.cleanup()
+            if self.monitor and self.monitor.dashboard:
+                self.monitor.dashboard.set_status(f"Error during training: {str(e)}")
             raise e
-        finally:
-            if self.monitor:
-                self.monitor.cleanup()

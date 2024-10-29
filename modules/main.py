@@ -11,6 +11,7 @@ from dataloader import TextClassificationDataset
 from datasets import load_dataset
 from inference import test_model
 from dashboard import TrainingDashboard
+import time
 
 def run_training(stdscr):
     # initialize config
@@ -81,26 +82,35 @@ def run_training(stdscr):
             dashboard.set_status("Running final evaluation...")
             final_metrics = trainer.evaluate()
             
-            # Save results before cleanup
+            # Update dashboard with final metrics
+            final_metrics['is_eval_step'] = True
+            monitor.log_metrics(final_metrics, trainer.global_step)
+            
+            # Save results
             dashboard.set_status("Saving final results...")
             monitor.save_metrics()
             
-            # Cleanup
+            # Show completion message
+            dashboard.set_status("Training completed successfully!")
+            time.sleep(2)  # Give time to see final status
+            
+            # Cleanup only once at the end
             monitor.cleanup()
             
-            # Run inference tests
+            # Run inference tests after dashboard cleanup
             test_model(model, tokenizer, config)
             
         except KeyboardInterrupt:
             dashboard.set_status("PROCESS INTERRUPTED BY USER")
         except Exception as e:
             dashboard.set_status(f"Error occurred: {str(e)}")
-        finally:
-            if 'monitor' in locals():
-                monitor.cleanup()
+            time.sleep(2)  # Give time to see error message
+            dashboard.cleanup()
 
     except Exception as e:
         if 'dashboard' in locals():
+            dashboard.set_status(f"Error occurred: {str(e)}")
+            time.sleep(2)  # Give time to see error message
             dashboard.cleanup()
         raise e
 

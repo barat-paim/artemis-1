@@ -12,3 +12,7 @@ Version: 0.3.0
 Title: fix: replace print with dashboard statuses
 What went wrong?: circular imports, dashboard status instead of print, functional bugs
 What was fixed?: main.py creates both dashboard & monitor (which receives dashboard as a parameters)[D[D[D[Dtrainer.py uses monitor for logging
+Version: 0.3.1
+Title: dashboard includes evaluation entries, prevent keyError
+What went wrong?: keyError stops training in between
+What was fixed?: draw_eval_table has get() to to handle missing metrics
