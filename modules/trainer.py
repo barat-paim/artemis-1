@@ -101,6 +101,16 @@ class Trainer:
             self.save_checkpoint('best_model')
         
         self.model.train()
+        
+        if self.monitor:
+            eval_metrics = {
+                'loss': metrics['eval_loss'],
+                'eval_accuracy': metrics['eval_accuracy'],
+                'eval_f1': metrics['eval_f1'],
+                'is_eval_step': True  # Important to mark as eval step
+            }
+            self.monitor.log_metrics(eval_metrics, self.global_step)
+        
         return metrics
 
     def save_checkpoint(self, name: str):
@@ -166,7 +176,10 @@ class Trainer:
                             'learning_rate': current_lr,
                             'epoch': epoch,
                             'gradient_norm': gradient_norm,
-                            'steps_without_improvement': self.no_improve_count
+                            'steps_without_improvement': self.no_improve_count,
+                            'current_step': self.global_step,
+                            'total_steps': len(self.train_dataloader) * self.config.num_epochs,
+                            'is_eval_step': self.global_step % self.config.save_steps == 0
                         }
                         self.monitor.log_metrics(metrics, self.global_step)
                     

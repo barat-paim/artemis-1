@@ -27,64 +27,82 @@ def run_training(stdscr):
         output_dir="./test_run",
         device="cuda" if torch.cuda.is_available() else "cpu",
         max_steps=1000,
-        save_steps=100,
-        early_stopping_patience=50
+        save_steps=10,
+        early_stopping_patience=50,
+        num_train_samples=1000,
+        num_eval_samples=100
     )
 
-    # Initialize dashboard first
-    dashboard = TrainingDashboard(stdscr, config)
-    
-    # Initialize monitor with dashboard
-    monitor = TrainingMonitor(config, dashboard)
-
-    dashboard.set_status(f"Starting New Experiment with Model: {config.model_name}")
-
-    # Load dataset
     try:
-        dashboard.set_status("Loading dataset...")
-        dataset = load_dataset("tweet_eval", "sentiment")
-        train_data = dataset['train'].select(range(config.train_size))
-        eval_data = dataset['test'].select(range(config.eval_size))
-        dashboard.set_status(f"Dataset loaded with {len(train_data)} training samples")
-    except Exception as e:
-        dashboard.set_status(f"Error loading dataset: {str(e)}")
-        return
+        # Initialize dashboard first
+        dashboard = TrainingDashboard(stdscr, config)
+        
+        # Initialize monitor with dashboard
+        monitor = TrainingMonitor(config, dashboard)
 
-    # setup model and tokenizer
-    try:
-        dashboard.set_status("Setting up MODEL and TOKENIZER...")
-        model, tokenizer = setup_model_and_tokenizer(config)
-        dashboard.set_status("SETUP COMPLETED")
-    except Exception as e:
-        dashboard.set_status(f"Error setting up model and tokenizer: {str(e)}")
-        return
+        dashboard.set_status(f"Starting New Experiment with Model: {config.model_name}")
 
-    # Prepare Datasets
-    dashboard.set_status("Preparing TRAIN and EVAL DATASETS...")
-    train_dataset = TextClassificationDataset(train_data, tokenizer, config)
-    eval_dataset = TextClassificationDataset(eval_data, tokenizer, config)
-    dashboard.set_status("DATASETS PREPARED")
+        # Load dataset
+        try:
+            dashboard.set_status("Loading dataset...")
+            dataset = load_dataset("tweet_eval", "sentiment")
+            train_data = dataset['train'].select(range(config.train_size))
+            eval_data = dataset['test'].select(range(config.eval_size))
+            dashboard.set_status(f"Dataset loaded with {len(train_data)} training samples")
+        except Exception as e:
+            dashboard.set_status(f"Error loading dataset: {str(e)}")
+            return
 
-    # Initialize trainer and start training
-    dashboard.set_status("Initializing TRAINER...")
-    dashboard.set_status("well, here we load the model, config, train and eval datasets, and the monitor")
-    trainer = Trainer(model, config, train_dataset, eval_dataset, monitor)
+        # setup model and tokenizer
+        try:
+            dashboard.set_status("Setting up MODEL and TOKENIZER...")
+            model, tokenizer = setup_model_and_tokenizer(config)
+            dashboard.set_status("SETUP COMPLETED")
+        except Exception as e:
+            dashboard.set_status(f"Error setting up model and tokenizer: {str(e)}")
+            return
 
-    try:
-        dashboard.set_status("Starting TRAINING...")
-        trainer.train()
-        dashboard.set_status("TRAINING COMPLETED")
-    except KeyboardInterrupt:
-        dashboard.set_status("PROCESS INTERRUPTED BY USER")
-    except Exception as e:
-        dashboard.set_status(f"Error occurred: {str(e)}")
-    finally:
-        if 'monitor' in locals():
+        # Prepare Datasets
+        dashboard.set_status("Preparing TRAIN and EVAL DATASETS...")
+        train_dataset = TextClassificationDataset(train_data, tokenizer, config)
+        eval_dataset = TextClassificationDataset(eval_data, tokenizer, config)
+        dashboard.set_status("DATASETS PREPARED")
+
+        # Initialize trainer and start training
+        dashboard.set_status("Initializing TRAINER...")
+        dashboard.set_status("well, here we load the model, config, train and eval datasets, and the monitor")
+        trainer = Trainer(model, config, train_dataset, eval_dataset, monitor)
+
+        try:
+            dashboard.set_status("Starting TRAINING...")
+            trainer.train()
+            
+            # Run final evaluation
+            dashboard.set_status("Running final evaluation...")
+            final_metrics = trainer.evaluate()
+            
+            # Save results before cleanup
+            dashboard.set_status("Saving final results...")
+            monitor.save_metrics()
+            
+            # Cleanup
             monitor.cleanup()
+            
+            # Run inference tests
+            test_model(model, tokenizer, config)
+            
+        except KeyboardInterrupt:
+            dashboard.set_status("PROCESS INTERRUPTED BY USER")
+        except Exception as e:
+            dashboard.set_status(f"Error occurred: {str(e)}")
+        finally:
+            if 'monitor' in locals():
+                monitor.cleanup()
 
-    # Test model predictions
-    dashboard.set_status("Testing model predictions...")
-    test_model(model, tokenizer, config)
+    except Exception as e:
+        if 'dashboard' in locals():
+            dashboard.cleanup()
+        raise e
 
 def main():
     """

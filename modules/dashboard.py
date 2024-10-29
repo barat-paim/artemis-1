@@ -43,12 +43,15 @@ class TrainingDashboard:
             return
             
         final_metrics = self.metrics_history[-1]
+        eval_metrics = next((m for m in reversed(self.metrics_history) 
+                            if 'eval_accuracy' in m), {})
+        
         with open(self.results_file, "w") as f:
             f.write("# Training Results\n\n")
             f.write("## Final Metrics\n")
             f.write(f"- Loss: {final_metrics.get('loss', 0):.4f}\n")
-            f.write(f"- Accuracy: {final_metrics.get('eval_accuracy', 0):.2%}\n")
-            f.write(f"- F1 Score: {final_metrics.get('eval_f1', 0):.2%}\n")
+            f.write(f"- Accuracy: {eval_metrics.get('eval_accuracy', 0):.2%}\n")
+            f.write(f"- F1 Score: {eval_metrics.get('eval_f1', 0):.2%}\n")
             f.write(f"- Training Time: {final_metrics.get('time_elapsed', 0)/60:.1f} minutes\n")
             
     def _draw_dashboard(self):
@@ -184,11 +187,17 @@ class TrainingDashboard:
     def _draw_progress_bar(self, y: int, x: int, current: int, total: int, message: str):
         """Draw a progress bar with message and time estimation"""
         width = 40
-        filled = int(width * current / total) if total > 0 else 0
+        # Ensure we have valid values
+        current = current if current is not None else 0
+        total = total if total is not None else 1
+        
+        filled = int(width * (current / total)) if total > 0 else 0
         bar = "█" * filled + "░" * (width - filled)
         percentage = (current / total * 100) if total > 0 else 0
         
-        self.stdscr.addstr(y, x, f"{message}")
+        # Update message with progress
+        progress_msg = f"{message} ({current}/{total} steps)"
+        self.stdscr.addstr(y, x, progress_msg)
         self.stdscr.addstr(y + 1, x, f"[{bar}] {percentage:>3.0f}%")
 
     def _format_time(self, seconds: float) -> str:

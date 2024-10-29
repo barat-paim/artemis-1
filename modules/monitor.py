@@ -7,8 +7,6 @@ import torch
 import json
 from typing import Dict, Any
 from config import TrainingConfig
-import curses
-import sys
 
 class TrainingMonitor:
     def __init__(self, config: TrainingConfig, dashboard=None):
@@ -17,14 +15,7 @@ class TrainingMonitor:
         self.metrics_history = []
         self.setup_logging()
         self.dashboard = dashboard
-        
-        # Initialize dashboard if in interactive mode
-        if sys.stdout.isatty():
-            try:
-                self.dashboard = curses.wrapper(lambda stdscr: TrainingDashboard(stdscr, config))
-            except:
-                curses.endwin()  # Ensure terminal is restored
-
+    
     def setup_logging(self):
         # Create output directory if it doesn't exist
         Path(self.config.output_dir).mkdir(parents=True, exist_ok=True)

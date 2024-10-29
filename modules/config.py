@@ -17,6 +17,9 @@ class TrainingConfig:
     weight_decay: float = 0.01
     warmup_ratio: float = 0.1
     save_steps: int = 500
+    max_steps: int = 1000
+    num_train_samples: int = 1000
+    num_eval_samples: int = 100
 
     # Hardware Settings
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
