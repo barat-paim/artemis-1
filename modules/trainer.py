@@ -128,59 +128,75 @@ class Trainer:
         return total_norm ** 0.5
 
     def train(self):
-        """Train the model with improved logging and monitoring"""
-        self.model.train()
-        self.global_step = 0
-        
-        for epoch in range(self.config.num_epochs):
-            epoch_loss = 0
+        try:
+            if self.monitor and self.monitor.dashboard:
+                self.monitor.dashboard.set_status("Starting training...")
             
-            for batch in self.train_dataloader:
-                batch = {k: v.to(self.config.device) for k, v in batch.items()}
-                
-                outputs = self.model(**batch)
-                loss = outputs.loss
-                
-                loss.backward()
-                
-                # Compute gradient norm before clipping
-                gradient_norm = self._compute_gradient_norm()
-                self.gradient_history.append(gradient_norm)
-                
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
-                
-                self.optimizer.step()
-                self.scheduler.step()
-                self.optimizer.zero_grad()
-                
-                epoch_loss += loss.item()
-                
-                # Enhanced metrics logging
-                if self.monitor and self.global_step % self.config.logging_steps == 0:
-                    current_lr = self.scheduler.get_last_lr()[0]
-                    metrics = {
-                        'loss': loss.item(),
-                        'learning_rate': current_lr,
-                        'epoch': epoch,
-                        'gradient_norm': gradient_norm,
-                        'steps_without_improvement': self.no_improve_count
-                    }
-                    self.monitor.log_metrics(metrics, self.global_step)
-                
-                # Early stopping check
-                if loss.item() < self.best_loss:
-                    self.best_loss = loss.item()
-                    self.no_improve_count = 0
-                else:
-                    self.no_improve_count += 1
-                    
-                if self.no_improve_count >= self.patience:
-                    print("\nEarly stopping triggered!")
-                    return
-                    
-                self.global_step += 1
+            self.model.train()
+            self.global_step = 0
             
-            # End of epoch logging
-            avg_epoch_loss = epoch_loss / len(self.train_dataloader)
+            for epoch in range(self.config.num_epochs):
+                epoch_loss = 0
+                
+                for batch in self.train_dataloader:
+                    batch = {k: v.to(self.config.device) for k, v in batch.items()}
+                    
+                    outputs = self.model(**batch)
+                    loss = outputs.loss
+                    
+                    loss.backward()
+                    
+                    # Compute gradient norm before clipping
+                    gradient_norm = self._compute_gradient_norm()
+                    self.gradient_history.append(gradient_norm)
+                    
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+                    
+                    self.optimizer.step()
+                    self.scheduler.step()
+                    self.optimizer.zero_grad()
+                    
+                    epoch_loss += loss.item()
+                    
+                    # Enhanced metrics logging
+                    if self.monitor and self.global_step % self.config.logging_steps == 0:
+                        current_lr = self.scheduler.get_last_lr()[0]
+                        metrics = {
+                            'loss': loss.item(),
+                            'learning_rate': current_lr,
+                            'epoch': epoch,
+                            'gradient_norm': gradient_norm,
+                            'steps_without_improvement': self.no_improve_count
+                        }
+                        self.monitor.log_metrics(metrics, self.global_step)
+                    
+                    # Early stopping check
+                    if loss.item() < self.best_loss:
+                        self.best_loss = loss.item()
+                        self.no_improve_count = 0
+                    else:
+                        self.no_improve_count += 1
+                        
+                    if self.no_improve_count >= self.patience:
+                        print("\nEarly stopping triggered!")
+                        return
+                        
+                    self.global_step += 1
+                
+                # End of epoch logging
+                avg_epoch_loss = epoch_loss / len(self.train_dataloader)
+                if self.monitor:
+                    self.monitor.log_metrics({'epoch_loss': avg_epoch_loss}, self.global_step)
+
+        except KeyboardInterrupt:
+            print("\nTraining interrupted by user")
             if self.monitor:
-                self.monitor.log_metrics({'epoch_loss': avg_epoch_loss}, self.global_step)
+                self.monitor.cleanup()
+            return
+        except Exception as e:
+            if self.monitor:
+                self.monitor.cleanup()
+            raise e
+        finally:
+            if self.monitor:
+                self.monitor.cleanup()

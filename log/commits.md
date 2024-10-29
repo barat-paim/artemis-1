@@ -1,2 +1,2 @@
-What went wrong?: training metrics were hard to read
-What was fixed?: new dashboard minimalism using curses
+What went wrong?: exiting instructions for dashboard were not created
+What was fixed?: exit functinos, clear section header, better aligned metrics, status message section, proper clean ved, saved results on ./log/results.md

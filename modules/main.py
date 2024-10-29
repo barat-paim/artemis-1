@@ -68,9 +68,13 @@ def main():
     try:
         trainer.train()
         print("Training completed successfully")
+    except KeyboardInterrupt:
+        print("\nProcess interrupted by user")
     except Exception as e:
-        print(f"Error during training: {str(e)}")
-        return
+        print(f"\nError occurred: {str(e)}")
+    finally:
+        if 'monitor' in locals():
+            monitor.cleanup()
 
     # Test model predictions
     print("*" * 20)

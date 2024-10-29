@@ -17,12 +17,14 @@ class TrainingMonitor:
         self.start_time = time.time()
         self.metrics_history = []
         self.setup_logging()
+        self.dashboard = None
         
         # Initialize dashboard if in interactive mode
         if sys.stdout.isatty():
-            self.dashboard = curses.wrapper(lambda stdscr: TrainingDashboard(stdscr, config))
-        else:
-            self.dashboard = None
+            try:
+                self.dashboard = curses.wrapper(lambda stdscr: TrainingDashboard(stdscr, config))
+            except:
+                curses.endwin()  # Ensure terminal is restored
 
     def setup_logging(self):
         # Create output directory if it doesn't exist
@@ -62,3 +64,9 @@ class TrainingMonitor:
         metrics_path = Path(self.config.output_dir) / "metrics.json"
         with open(metrics_path, "w") as f:
             json.dump(self.metrics_history, f)
+    
+    def cleanup(self):
+        """Cleanup resources and restore terminal"""
+        if self.dashboard:
+            self.dashboard.cleanup()
+            self.dashboard = None

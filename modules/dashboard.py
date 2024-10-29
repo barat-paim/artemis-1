@@ -3,98 +3,88 @@ import time
 import numpy as np
 from typing import Dict, List, Optional
 from config import TrainingConfig
+from pathlib import Path
 
 class TrainingDashboard:
     def __init__(self, stdscr, config: TrainingConfig):
         self.stdscr = stdscr
         self.config = config
+        self.setup_colors()
+        self.metrics_history = []
+        self.status_message = ""
+        self.max_y, self.max_x = stdscr.getmaxyx()
+        self.results_file = Path("./logs/results.md")
+        self.results_file.parent.mkdir(exist_ok=True)
+        
+    def setup_colors(self):
         curses.start_color()
         curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
         curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
         curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)
-        self.metrics_history = []
+        curses.init_pair(4, curses.COLOR_CYAN, curses.COLOR_BLACK)
         
-    def update_metrics(self, metrics: Dict[str, float]):
-        self.metrics_history.append(metrics)
+    def set_status(self, message: str):
+        self.status_message = message
         self._draw_dashboard()
         
-    def _draw_speedometer(self, y: int, x: int, value: float, max_value: float, title: str):
-        # Draw speedometer-like visualization
-        width = 20
-        filled = int((value / max_value) * width)
-        self.stdscr.addstr(y, x, f"{title}: ")
-        self.stdscr.addstr(y, x + len(title) + 2, "[")
-        self.stdscr.addstr("=" * filled)
-        self.stdscr.addstr(" " * (width - filled))
-        self.stdscr.addstr(f"] {value:.4f}")
+    def _draw_section_header(self, y: int, x: int, title: str):
+        self.stdscr.addstr(y, x, f"═══ {title} ", curses.color_pair(4) | curses.A_BOLD)
+        remaining_width = self.max_x - (x + len(title) + 5)
+        self.stdscr.addstr(y, x + len(title) + 5, "═" * remaining_width, curses.color_pair(4))
         
-    def _draw_gradient_gauge(self, y: int, x: int, gradient_norm: float):
-        """Draw gradient norm with warning colors"""
-        self.stdscr.addstr(y, x, "Gradient Norm: ")
-        if gradient_norm > 10.0:
-            self.stdscr.addstr(f"{gradient_norm:.2f}", curses.color_pair(2))  # Red
-        elif gradient_norm > 5.0:
-            self.stdscr.addstr(f"{gradient_norm:.2f}", curses.color_pair(3))  # Yellow
-        else:
-            self.stdscr.addstr(f"{gradient_norm:.2f}", curses.color_pair(1))  # Green
-
-    def _draw_early_stopping(self, y: int, x: int, steps_without_improvement: int, patience: int):
-        """Draw early stopping progress"""
-        progress = steps_without_improvement / patience
-        width = 20
-        filled = int(progress * width)
+    def cleanup(self):
+        curses.endwin()
+        self._save_final_results()
         
-        self.stdscr.addstr(y, x, "Early Stopping: ")
-        self.stdscr.addstr("[")
-        if progress > 0.8:
-            color = curses.color_pair(2)  # Red
-        elif progress > 0.5:
-            color = curses.color_pair(3)  # Yellow
-        else:
-            color = curses.color_pair(1)  # Green
-        
-        self.stdscr.addstr("=" * filled, color)
-        self.stdscr.addstr(" " * (width - filled))
-        self.stdscr.addstr(f"] {steps_without_improvement}/{patience}")
-
+    def _save_final_results(self):
+        if not self.metrics_history:
+            return
+            
+        final_metrics = self.metrics_history[-1]
+        with open(self.results_file, "w") as f:
+            f.write("# Training Results\n\n")
+            f.write("## Final Metrics\n")
+            f.write(f"- Loss: {final_metrics.get('loss', 0):.4f}\n")
+            f.write(f"- Accuracy: {final_metrics.get('eval_accuracy', 0):.2%}\n")
+            f.write(f"- F1 Score: {final_metrics.get('eval_f1', 0):.2%}\n")
+            f.write(f"- Training Time: {final_metrics.get('time_elapsed', 0)/60:.1f} minutes\n")
+            
     def _draw_dashboard(self):
         self.stdscr.clear()
         
-        # Title
-        self.stdscr.addstr(0, 0, "Training Dashboard", curses.A_BOLD)
+        # Main title
+        title = "Model Training Dashboard"
+        self.stdscr.addstr(0, (self.max_x - len(title)) // 2, title, curses.A_BOLD | curses.color_pair(4))
         
-        # Current metrics
         if self.metrics_history:
             current_metrics = self.metrics_history[-1]
             
-            # Training Loss Speedometer
-            self._draw_speedometer(2, 0, current_metrics.get('loss', 0), 2.0, "Loss")
+            # Training Metrics Section
+            self._draw_section_header(2, 0, "Training Progress")
+            self._draw_speedometer(4, 2, current_metrics.get('loss', 0), 2.0, "Loss")
+            self._draw_speedometer(5, 2, current_metrics.get('learning_rate', 0), 1e-4, "LR")
+            self._draw_gradient_gauge(6, 2, current_metrics.get('gradient_norm', 0))
             
-            # Learning Rate Indicator
-            self._draw_speedometer(3, 0, current_metrics.get('learning_rate', 0), 1e-4, "LR")
-            
-            # Accuracy Gauge
+            # Evaluation Metrics Section
+            self._draw_section_header(8, 0, "Evaluation Metrics")
             if 'eval_accuracy' in current_metrics:
-                self._draw_speedometer(4, 0, current_metrics['eval_accuracy'], 1.0, "Accuracy")
-            
-            # F1 Score Gauge
+                self._draw_speedometer(10, 2, current_metrics['eval_accuracy'], 1.0, "Accuracy")
             if 'eval_f1' in current_metrics:
-                self._draw_speedometer(5, 0, current_metrics['eval_f1'], 1.0, "F1 Score")
+                self._draw_speedometer(11, 2, current_metrics['eval_f1'], 1.0, "F1 Score")
             
-            # Training Progress
+            # System Metrics Section
+            self._draw_section_header(13, 0, "System Status")
             epoch = current_metrics.get('epoch', 0)
-            self.stdscr.addstr(6, 0, f"Epoch: {epoch}")
-            
-            # GPU Memory Usage
-            gpu_memory = current_metrics.get('gpu_memory', 0)
-            self.stdscr.addstr(7, 0, f"GPU Memory: {gpu_memory:.2f} MB")
-            
-            # Gradient Norm
-            self._draw_gradient_gauge(8, 0, current_metrics.get('gradient_norm', 0))
-            
-            # Early Stopping
-            self._draw_early_stopping(9, 0, 
+            gpu_mem = current_metrics.get('gpu_memory', 0)
+            self.stdscr.addstr(15, 2, f"Epoch: {epoch}")
+            self.stdscr.addstr(15, 20, f"GPU Memory: {gpu_mem:.0f}MB")
+            self._draw_early_stopping(16, 2, 
                 current_metrics.get('steps_without_improvement', 0),
                 self.config.early_stopping_patience)
+            
+            # Status Message
+            if self.status_message:
+                self._draw_section_header(18, 0, "Status")
+                self.stdscr.addstr(19, 2, self.status_message)
         
         self.stdscr.refresh()
