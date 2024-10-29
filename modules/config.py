@@ -38,3 +38,6 @@ class TrainingConfig:
     lora_dropout: float = 0.05
     lora_target_modules: List[str] = None
 
+    # Early Stopping
+    early_stopping_patience: int = 50  # Number of steps without improvement before stopping
+

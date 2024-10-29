@@ -44,6 +44,10 @@ class Trainer:
         self.monitor = monitor
         self.best_metric = float('-inf')  # For tracking best F1 score
         self.setup_optimization()
+        self.patience = config.early_stopping_patience
+        self.best_loss = float('inf')
+        self.no_improve_count = 0
+        self.gradient_history = []
 
     def setup_optimization(self):
         """Initialize optimizer and learning rate scheduler with weight decay handling"""
@@ -115,6 +119,14 @@ class Trainer:
             'step': self.global_step if hasattr(self, 'global_step') else 0,
         }, checkpoint_dir / "training_state.pt")
 
+    def _compute_gradient_norm(self):
+        """Compute total gradient norm across all parameters"""
+        total_norm = 0.0
+        for p in self.model.parameters():
+            if p.grad is not None:
+                total_norm += p.grad.data.norm(2).item() ** 2
+        return total_norm ** 0.5
+
     def train(self):
         """Train the model with improved logging and monitoring"""
         self.model.train()
@@ -130,6 +142,11 @@ class Trainer:
                 loss = outputs.loss
                 
                 loss.backward()
+                
+                # Compute gradient norm before clipping
+                gradient_norm = self._compute_gradient_norm()
+                self.gradient_history.append(gradient_norm)
+                
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
                 
                 self.optimizer.step()
@@ -138,28 +155,29 @@ class Trainer:
                 
                 epoch_loss += loss.item()
                 
-                # Log training metrics
+                # Enhanced metrics logging
                 if self.monitor and self.global_step % self.config.logging_steps == 0:
                     current_lr = self.scheduler.get_last_lr()[0]
                     metrics = {
                         'loss': loss.item(),
                         'learning_rate': current_lr,
-                        'epoch': epoch
+                        'epoch': epoch,
+                        'gradient_norm': gradient_norm,
+                        'steps_without_improvement': self.no_improve_count
                     }
                     self.monitor.log_metrics(metrics, self.global_step)
                 
-                # Evaluate and save checkpoint
-                if self.eval_dataloader and (self.global_step % self.config.eval_steps == 0 or self.global_step == 0):
-                    eval_metrics = self.evaluate()
-                    if self.monitor:
-                        self.monitor.log_metrics(eval_metrics, self.global_step)
-                    print(f"\nEvaluation metrics at step {self.global_step}:")
-                    print(f"Accuracy: {eval_metrics['eval_accuracy']:.4f}")
-                    print(f"F1 Score: {eval_metrics['eval_f1']:.4f}")
-                
-                if self.global_step % self.config.save_steps == 0:
-                    self.save_checkpoint(f'checkpoint-{self.global_step}')
-                
+                # Early stopping check
+                if loss.item() < self.best_loss:
+                    self.best_loss = loss.item()
+                    self.no_improve_count = 0
+                else:
+                    self.no_improve_count += 1
+                    
+                if self.no_improve_count >= self.patience:
+                    print("\nEarly stopping triggered!")
+                    return
+                    
                 self.global_step += 1
             
             # End of epoch logging

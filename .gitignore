@@ -1,3 +1,5 @@
+run.sh
+git.sh
 model/
 __pycache__/
 *.py[cod]

@@ -7,6 +7,9 @@ import torch
 import json
 from typing import Dict, Any
 from config import TrainingConfig
+import curses
+import sys
+from dashboard import TrainingDashboard
 
 class TrainingMonitor:
     def __init__(self, config: TrainingConfig):
@@ -14,6 +17,12 @@ class TrainingMonitor:
         self.start_time = time.time()
         self.metrics_history = []
         self.setup_logging()
+        
+        # Initialize dashboard if in interactive mode
+        if sys.stdout.isatty():
+            self.dashboard = curses.wrapper(lambda stdscr: TrainingDashboard(stdscr, config))
+        else:
+            self.dashboard = None
 
     def setup_logging(self):
         # Create output directory if it doesn't exist
@@ -43,6 +52,10 @@ class TrainingMonitor:
         }
         self.metrics_history.append(metrics_with_meta)
         self.logger.info(f"Step {step}: {metrics}")
+        
+        # Update dashboard if available
+        if self.dashboard:
+            self.dashboard.update_metrics(metrics_with_meta)
     
     # Save metrics to a file
     def save_metrics(self):
