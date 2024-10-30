@@ -1,4 +1,5 @@
 # Training Dashboard User Guide
+<img width="460" alt="image" src="https://github.com/user-attachments/assets/3813771b-b9e8-438b-995b-43e8b858beb6">
 
 ## Overview
 The Training Dashboard is an interactive terminal interface for monitoring and controlling your model training process in real-time.
@@ -116,4 +117,3 @@ Reference:
 3. Press 'q' to exit when ready
 4. Final results are saved to `./logs/results.md
 
-<img width="460" alt="image" src="https://github.com/user-attachments/assets/3813771b-b9e8-438b-995b-43e8b858beb6">

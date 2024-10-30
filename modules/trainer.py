@@ -12,7 +12,7 @@ except ImportError:
     subprocess.check_call(["pip3", "install", "scikit-learn", "--user"])
     from sklearn.metrics import accuracy_score, f1_score
 import numpy as np
-from typing import Optional
+from typing import Optional, Tuple
 from config import TrainingConfig
 from monitor import TrainingMonitor
 from datasets import Dataset
@@ -116,21 +116,33 @@ class Trainer:
         
         return metrics
 
-    def save_checkpoint(self, name: str):
-        """Save a checkpoint of the model with additional training state"""
-        checkpoint_dir = Path(self.config.output_dir) / name
-        checkpoint_dir.mkdir(parents=True, exist_ok=True)
-
-        # Save model
-        self.model.save_pretrained(checkpoint_dir)
-
-        # Save training state
-        torch.save({
-            'optimizer': self.optimizer.state_dict(),
-            'scheduler': self.scheduler.state_dict(),
-            'best_metric': self.best_metric,
-            'step': self.global_step if hasattr(self, 'global_step') else 0,
-        }, checkpoint_dir / "training_state.pt")
+    def save_checkpoint(self) -> Tuple[Path, Path]:
+        checkpoint_dir = Path(self.config.output_dir) / "checkpoints"
+        checkpoint_dir.mkdir(exist_ok=True)
+        
+        checkpoint_path = checkpoint_dir / f"checkpoint_step_{self.global_step}.pt"
+        latest_path = checkpoint_dir / "checkpoint_latest.pt"
+        
+        checkpoint = {
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'scheduler_state_dict': self.scheduler.state_dict() if self.scheduler else None,
+            'global_step': self.global_step,
+            'best_loss': self.best_loss,
+            'config': self.config,
+            'metrics': {
+                'loss': self.best_loss,
+                'steps_without_improvement': self.no_improve_count
+            }
+        }
+        
+        torch.save(checkpoint, checkpoint_path)
+        torch.save(checkpoint, latest_path)
+        
+        if self.monitor:
+            self.monitor.logger.info(f"Saved checkpoint to {checkpoint_path}")
+        
+        return checkpoint_path, latest_path
 
     def _compute_gradient_norm(self):
         """Compute total gradient norm across all parameters"""

@@ -32,3 +32,7 @@ Version: 0.3.5
 Title: visual loss, val metrics, interactive keyboard
 What went wrong?: loss was not easy to infer and no keyboard control during dashboard
 What was fixed?: visual loss trend, clear validation metrics, interactive q and s controls
+Version: 0.4.0
+Title: checkpoints added
+What went wrong?: not sure whether checkpoints allow aborting the training w/o losing progress
+What was fixed?: updated dashboard interaction handler in main.py

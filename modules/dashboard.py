@@ -293,3 +293,10 @@ class TrainingDashboard:
         """Draw keyboard shortcuts section"""
         self.stdscr.addstr(y, x, "Keyboard Shortcuts:", curses.A_BOLD)
         self.stdscr.addstr(y + 1, x, "q: Quit  |  s: Save Checkpoint  |  p: Pause/Resume")
+
+    def _show_checkpoint_info(self, checkpoint_path: Path, latest_path: Path):
+        """Show checkpoint save locations"""
+        save_y = self.max_y - 5  # Show near bottom of screen
+        self.stdscr.addstr(save_y, 2, "Checkpoints saved to:", curses.A_BOLD)
+        self.stdscr.addstr(save_y + 1, 4, f"Step checkpoint: {checkpoint_path}")
+        self.stdscr.addstr(save_y + 2, 4, f"Latest checkpoint: {latest_path}")
