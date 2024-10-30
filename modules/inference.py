@@ -51,4 +51,9 @@ def test_model(model, tokenizer, config) -> List[Dict]:
         "Terrible service and poor quality."
     ]
     
-    return predictor.predict_batch(test_texts)
+    results = predictor.predict_batch(test_texts)
+    # Add prediction key for dashboard compatibility
+    for result in results:
+        result['prediction'] = result['sentiment']
+    
+    return results

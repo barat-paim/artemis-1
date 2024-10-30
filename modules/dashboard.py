@@ -260,8 +260,10 @@ class TrainingDashboard:
         self._draw_section_header(y, 0, "Inference Results")
         for i, result in enumerate(results):
             text = result['text'][:50] + "..." if len(result['text']) > 50 else result['text']
-            pred = result['prediction']
-            conf = result['confidence']
+            # Try prediction first, fall back to sentiment if prediction not found
+            pred = result.get('prediction', result.get('sentiment', 'N/A'))
+            conf = result.get('confidence', 0.0) * 100  # Convert to percentage
+            
             self.stdscr.addstr(y + i + 1, x, f"{text}")
             self.stdscr.addstr(y + i + 1, x + 55, f"{pred} ({conf:.1f}%)", 
                               curses.color_pair(1) if conf > 70 else curses.color_pair(3))

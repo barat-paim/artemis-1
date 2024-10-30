@@ -44,3 +44,7 @@ Version: 1.0.0
 Title: Improve error handling and user interaction in dashboard
 What went wrong?: Prediction Error coming from inference phase
 What was fixed?: Given the error during inference, when an error occurs, then the Detailed error messages are logged to training.log, Users are presented with clear options to save checkpoint ('s') or quit ('q'), Terminal state is properly restored on exit, Training progress is preserved with opportunity to save checkpoint, Error mesage are more descriptive and user friendly
+Version: 1.1.0
+Title: Update dashboard to handle both sentiment and prediction keys
+What went wrong?: The inference results contain either sentimeent or prediction keys when displaying inference results in the dashboard
+What was fixed?: Handle both 'sentiment' and 'prediction' keys, Add fallback to 'N/A' if neither key eixsts, Handle confidence values  with default of 0.0, Convert confidence to percentage, Prevent KeyError exceptions during display
