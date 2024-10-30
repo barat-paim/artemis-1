@@ -98,7 +98,7 @@ class Trainer:
         # Save best model if F1 score improved
         if metrics['eval_f1'] > self.best_metric:
             self.best_metric = metrics['eval_f1']
-            self.save_checkpoint('best_model')
+            self.save_checkpoint()
         
         self.model.train()
         

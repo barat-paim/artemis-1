@@ -19,10 +19,10 @@ def run_training(stdscr):
         model_name="facebook/opt-125m",
         train_size=1000,
         eval_size=100,
-        batch_size=16,
+        batch_size=12,
         num_epochs=3,
         model_max_length=512,
-        learning_rate=2e-5,
+        learning_rate=5e-6, # consider reducing this 
         weight_decay=0.01,
         warmup_ratio=0.1,
         output_dir="./test_run",

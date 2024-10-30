@@ -36,3 +36,7 @@ Version: 0.4.0
 Title: checkpoints added
 What went wrong?: not sure whether checkpoints allow aborting the training w/o losing progress
 What was fixed?: updated dashboard interaction handler in main.py
+Version: 0.4.1
+Title: Integrate SentimentPredictor in Inference
+What went wrong?: Error in test_model using predict_sentiment which isn't defined
+What was fixed?: Removed undefined predict_sentiment function call and used existing SentimentPredictor class that is already defined in the inference.py

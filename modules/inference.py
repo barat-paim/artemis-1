@@ -41,7 +41,8 @@ class SentimentPredictor:
         return [self.predict(text) for text in texts]
 
 def test_model(model, tokenizer, config) -> List[Dict]:
-    results = []
+    """Predict sentiments for test texts using the SentimentPredictor class"""
+    predictor = SentimentPredictor(model, tokenizer, config)
     test_texts = [
         "This movie was amazing!",
         "I didn't like it at all.",
@@ -50,12 +51,4 @@ def test_model(model, tokenizer, config) -> List[Dict]:
         "Terrible service and poor quality."
     ]
     
-    for text in test_texts:
-        prediction, confidence, probs = predict_sentiment(text, model, tokenizer)
-        results.append({
-            'text': text,
-            'prediction': prediction,
-            'confidence': confidence * 100,
-            'probabilities': probs
-        })
-    return results
+    return predictor.predict_batch(test_texts)
