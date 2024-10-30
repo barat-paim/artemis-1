@@ -12,8 +12,16 @@ from datasets import load_dataset
 from inference import test_model
 from dashboard import TrainingDashboard
 import time
+import logging
 
 def run_training(stdscr):
+    # Add logging setup at the start
+    logging.basicConfig(
+        filename='training.log',
+        level=logging.ERROR,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+
     # Initialize config (keep existing config setup)
     config = TrainingConfig(
         model_name="facebook/opt-125m",
@@ -22,7 +30,7 @@ def run_training(stdscr):
         batch_size=12,
         num_epochs=3,
         model_max_length=512,
-        learning_rate=5e-6, # consider reducing this 
+        learning_rate=1e-6, # consider reducing this 
         weight_decay=0.01,
         warmup_ratio=0.1,
         output_dir="./test_run",
@@ -71,26 +79,33 @@ def run_training(stdscr):
             dashboard._save_final_results()
             
             # Inference phase
-            dashboard.set_status("Running inference tests...")
-            inference_results = test_model(model, tokenizer, config)
-            current_y = len(dashboard.eval_history) + 20
-            dashboard._draw_inference_results(current_y, 2, inference_results)
-            dashboard.stdscr.refresh()
-            
-            dashboard.set_status("Training completed! Press 'q' to exit, 's' to save checkpoint")
-            
-        except KeyboardInterrupt:
-            dashboard.set_status("Training interrupted! Press 'q' to exit, 's' to save checkpoint")
-        except Exception as e:
-            dashboard.set_status(f"Error: {str(e)}! Press 'q' to exit")
+            try:
+                dashboard.set_status("Running inference tests...")
+                inference_results = test_model(model, tokenizer, config)
+                current_y = len(dashboard.eval_history) + 20
+                dashboard._draw_inference_results(current_y, 2, inference_results)
+                dashboard.stdscr.refresh()
+            except Exception as e:
+                logging.error(f"Inference error: {str(e)}", exc_info=True)
+                dashboard.set_status(f"Inference error: {str(e)}\nPress 's' to save checkpoint or 'q' to exit")
+                # Continue to dashboard interaction instead of immediate exit
+                return handle_dashboard_interaction(dashboard, trainer)
 
-        # Interactive dashboard phase
-        return handle_dashboard_interaction(dashboard, trainer)
+            # Interactive dashboard phase
+            return handle_dashboard_interaction(dashboard, trainer)
+
+        except Exception as e:
+            logging.error(f"Critical error: {str(e)}", exc_info=True)
+            if 'dashboard' in locals():
+                dashboard.set_status(f"Critical error: {str(e)}\nPress 's' to save checkpoint or 'q' to exit")
+                return handle_dashboard_interaction(dashboard, trainer)
+            raise e
 
     except Exception as e:
+        logging.error(f"Critical error: {str(e)}", exc_info=True)
         if 'dashboard' in locals():
-            dashboard.set_status(f"Critical error: {str(e)}")
-            return handle_exit(dashboard)
+            dashboard.set_status(f"Critical error: {str(e)}\nPress 's' to save checkpoint or 'q' to exit")
+            return handle_dashboard_interaction(dashboard, trainer)
         raise e
 
 def handle_dashboard_interaction(dashboard, trainer):
@@ -119,10 +134,22 @@ def handle_exit(dashboard):
     try:
         dashboard._save_final_results()
         time.sleep(1)  # Give time to see final message
+        
+        # Force reset of terminal state
+        curses.nocbreak()
+        stdscr = dashboard.stdscr
+        stdscr.keypad(False)
+        curses.echo()
         curses.endwin()
+        
         return True
     except Exception as e:
+        logging.error(f"Exit error: {str(e)}", exc_info=True)
         print(f"Error during cleanup: {str(e)}")
+        try:
+            curses.endwin()
+        except:
+            pass
         return False
 
 def main():

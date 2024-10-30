@@ -40,3 +40,7 @@ Version: 0.4.1
 Title: Integrate SentimentPredictor in Inference
 What went wrong?: Error in test_model using predict_sentiment which isn't defined
 What was fixed?: Removed undefined predict_sentiment function call and used existing SentimentPredictor class that is already defined in the inference.py
+Version: 1.0.0
+Title: Improve error handling and user interaction in dashboard
+What went wrong?: Prediction Error coming from inference phase
+What was fixed?: Given the error during inference, when an error occurs, then the Detailed error messages are logged to training.log, Users are presented with clear options to save checkpoint ('s') or quit ('q'), Terminal state is properly restored on exit, Training progress is preserved with opportunity to save checkpoint, Error mesage are more descriptive and user friendly
