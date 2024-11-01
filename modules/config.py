@@ -31,7 +31,7 @@ class TrainingConfig:
     eval_size: int = 100
 
     # Logging & Checkpointing
-    output_dir: str = "./outputs"
+    output_dir: str = "./lightning_outputs"
     logging_steps: int = 10
     eval_steps: int = 20
 
