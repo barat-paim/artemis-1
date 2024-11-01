@@ -1,18 +1,28 @@
 # main.py
 
-from pathlib import Path
 import torch
+from pathlib import Path
+import pytorch_lightning as pl
+import wandb
+import time
 import curses
+import logging
+
+# Pytorch Lightning Imports
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from pytorch_lightning.loggers import WandbLogger
+from datasets import load_dataset
+
+# Local Imports
 from config import TrainingConfig
+from dataloader import TextClassificationDataset
+from inference import test_model
+from lightning_model import LightningClassifier
 from model_utils import setup_model_and_tokenizer
 from monitor import TrainingMonitor
 from trainer import Trainer
-from dataloader import TextClassificationDataset
-from datasets import load_dataset
-from inference import test_model
 from dashboard import TrainingDashboard
-import time
-import logging
+
 
 def run_training(stdscr):
     # Add logging setup at the start
@@ -39,124 +49,47 @@ def run_training(stdscr):
         save_steps=100,
         early_stopping_patience=50,
         num_train_samples=1000,  # Added
-        num_eval_samples=100     # Added
+        num_eval_samples=100,     # Added
+        save_top_k=3
     )
 
-    try:
-        # Initialize dashboard and monitor (keep existing initialization)
-        dashboard = TrainingDashboard(stdscr, config)
-        monitor = TrainingMonitor(config, dashboard)
-        dashboard.set_status(f"Starting New Experiment with Model: {config.model_name}")
-
-        # Setup phase
-        try:
-            # Load dataset and setup model (keep existing setup code)
-            dataset = load_dataset("tweet_eval", "sentiment")
-            train_data = dataset['train'].select(range(config.train_size))
-            eval_data = dataset['test'].select(range(config.eval_size))
-            model, tokenizer = setup_model_and_tokenizer(config)
-            train_dataset = TextClassificationDataset(train_data, tokenizer, config)
-            eval_dataset = TextClassificationDataset(eval_data, tokenizer, config)
-            trainer = Trainer(model, config, train_dataset, eval_dataset, monitor)
-        except Exception as e:
-            dashboard.set_status(f"Setup error: {str(e)}")
-            return handle_exit(dashboard)
-
-        # Training phase
-        try:
-            dashboard.set_status("Starting TRAINING...")
-            trainer.train()
-            
-            # Evaluation phase
-            dashboard.set_status("Running final evaluation...")
-            final_metrics = trainer.evaluate()
-            final_metrics['is_eval_step'] = True
-            monitor.log_metrics(final_metrics, trainer.global_step)
-            
-            # Results phase
-            dashboard.set_status("Saving results...")
-            monitor.save_metrics()
-            dashboard._save_final_results()
-            
-            # Inference phase
-            try:
-                dashboard.set_status("Running inference tests...")
-                inference_results = test_model(model, tokenizer, config)
-                current_y = len(dashboard.eval_history) + 20
-                dashboard._draw_inference_results(current_y, 2, inference_results)
-                dashboard.stdscr.refresh()
-            except Exception as e:
-                logging.error(f"Inference error: {str(e)}", exc_info=True)
-                dashboard.set_status(f"Inference error: {str(e)}\nPress 's' to save checkpoint or 'q' to exit")
-                # Continue to dashboard interaction instead of immediate exit
-                return handle_dashboard_interaction(dashboard, trainer)
-
-            # Interactive dashboard phase
-            return handle_dashboard_interaction(dashboard, trainer)
-
-        except Exception as e:
-            logging.error(f"Critical error: {str(e)}", exc_info=True)
-            if 'dashboard' in locals():
-                dashboard.set_status(f"Critical error: {str(e)}\nPress 's' to save checkpoint or 'q' to exit")
-                return handle_dashboard_interaction(dashboard, trainer)
-            raise e
-
-    except Exception as e:
-        logging.error(f"Critical error: {str(e)}", exc_info=True)
-        if 'dashboard' in locals():
-            dashboard.set_status(f"Critical error: {str(e)}\nPress 's' to save checkpoint or 'q' to exit")
-            return handle_dashboard_interaction(dashboard, trainer)
-        raise e
-
-def handle_dashboard_interaction(dashboard, trainer):
-    """Handle user interaction with the dashboard"""
-    stdscr = dashboard.stdscr
-    stdscr.nodelay(0)  # Make getch blocking
+    # Initialize wandb logger
+    wandb_logger = WandbLogger(project="sentiment-analysis",
+                               name=f"run-{config.model_name}",
+                               config=config.__dict__)
     
-    while True:
-        try:
-            key = stdscr.getch()
-            if key == ord('q'):
-                dashboard.set_status("Exiting...")
-                time.sleep(1)
-                return handle_exit(dashboard)
-            elif key == ord('s'):
-                dashboard.set_status("Saving checkpoint...")
-                checkpoint_path, latest_path = trainer.save_checkpoint()
-                dashboard._show_checkpoint_info(checkpoint_path, latest_path)
-                dashboard.set_status("Checkpoint saved. Press 'q' to exit")
-            dashboard.stdscr.refresh()
-        except curses.error:
-            continue
+    # Initialize callbacks
+    callbacks = [ModelCheckpoint(dirpath=config.output_dir,
+                                  filename="{epoch}-{val_f1:.2f}",
+                                  monitor="val_f1",
+                                  mode="max",
+                                  save_top_k=config.save_top_k,
+                                  save_last=True),
+                 EarlyStopping(monitor="val_loss",
+                               patience=config.early_stopping_patience,
+                               mode="min")]
 
-def handle_exit(dashboard):
-    """Handle clean exit from the dashboard"""
+
+    # Initialize trainer
+    trainer = pl.Trainer(accelerator=config.device,
+                         callbacks=callbacks,
+                         logger=wandb_logger,
+                         max_epochs=config.num_epochs,
+                         max_steps=config.max_steps,
+                         precision=config.dtype,
+                         gradient_checkpointing=True)
+
+    # Initialize model and data module
+    model = LightningClassifier(config)
+    data_module = TextClassificationDataModule(config)
+
+    # Train model
     try:
-        dashboard._save_final_results()
-        time.sleep(1)  # Give time to see final message
-        
-        # Force reset of terminal state
-        curses.nocbreak()
-        stdscr = dashboard.stdscr
-        stdscr.keypad(False)
-        curses.echo()
-        curses.endwin()
-        
-        return True
-    except Exception as e:
-        logging.error(f"Exit error: {str(e)}", exc_info=True)
-        print(f"Error during cleanup: {str(e)}")
-        try:
-            curses.endwin()
-        except:
-            pass
-        return False
-
-def main():
-    """Main entry point"""
-    success = curses.wrapper(run_training)
-    if not success:
-        print("Program terminated with errors. Check logs for details.")
+        trainer.fit(model, datamodule=data_module)
+    except KeyboardInterrupt:
+        print("Training interrupted by user")
+    finally:
+        wandb.finish()
 
 if __name__ == "__main__":
-    main()
+    run_training()
