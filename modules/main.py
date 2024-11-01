@@ -15,16 +15,12 @@ from datasets import load_dataset
 
 # Local Imports
 from config import TrainingConfig
-from dataloader import TextClassificationDataset
-from inference import test_model
-from lightning_model import LightningClassifier
+from dataloader import TextClassificationDataModule
+from lightning_model import LightningClassifier # check in light
 from model_utils import setup_lightning_model
-from monitor import TrainingMonitor
-from trainer import Trainer
-from dashboard import TrainingDashboard
 
 
-def run_training(stdscr):
+def run_training():
     # Add logging setup at the start
     logging.basicConfig(
         filename='training.log',
@@ -43,7 +39,7 @@ def run_training(stdscr):
         learning_rate=1e-6, # consider reducing this 
         weight_decay=0.01,
         warmup_ratio=0.1,
-        output_dir="./test_run",
+        output_dir="./lightning_outputs",
         device="cuda" if torch.cuda.is_available() else "cpu",
         max_steps=1000,
         save_steps=100,
