@@ -35,7 +35,7 @@ class LightningClassifier(LightningModule):
         
         return {'val_loss': loss, 'preds': preds, 'labels': batch['labels']}
         
-    def validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         all_preds = torch.cat([x['preds'] for x in outputs]).cpu()
         all_labels = torch.cat([x['labels'] for x in outputs]).cpu()

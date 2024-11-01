@@ -6,10 +6,10 @@ from transformers import AutoTokenizer
 import torch
 
 class TextClassificationDataModule(LightningDataModule):
-    def __init__(self, config):
+    def __init__(self, config, tokenizer):
         super().__init__()
         self.config = config
-        self.tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+        self.tokenizer = tokenizer
         
     def setup(self, stage=None):
         # Load dataset

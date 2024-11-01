@@ -45,3 +45,8 @@ class TrainingConfig:
     # Early Stopping
     early_stopping_patience: int = 50  # Number of steps without improvement before stopping
 
+    # Wandb Configuration
+    wandb_project: str = "sentiment-analysis"
+    wandb_entity: Optional[str] = None
+    gradient_clip_val: float = 1.0
+

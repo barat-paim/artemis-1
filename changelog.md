@@ -39,3 +39,62 @@ commit 8: Add Documentation
 - Add README.md with migration notes
 - Document W&B setup process
 - Add example configuration
+
+
+commit: Migrate to PyTorch Lightning with W&B Integration
+
+BREAKING CHANGE: Complete architecture overhaul
+
+feat(core):
+- Replace custom training loop with PyTorch Lightning
+- Integrate Weights & Biases for experiment tracking
+- Add LoRA support in Lightning framework
+
+refactor:
+- Remove dashboard.py, monitor.py, and trainer.py
+- Migrate model initialization to lightning_model_utils.py
+- Update dataloader to Lightning DataModule
+- Convert inference to Lightning-compatible structure
+
+changes:
+1. lightning_model.py
+   - Add LightningModule implementation
+   - Configure optimizers with AdamW and warmup
+   - Implement training and validation steps
+   Ref: startLine: 8, endLine: 91
+
+2. main.py
+   - Remove curses-based UI
+   - Add W&B logger configuration
+   - Setup Lightning trainer with callbacks
+   - Initialize model and data module
+   Ref: startLine: 27, endLine: 93
+
+3. config.py
+   - Add Lightning-specific parameters
+   - Include W&B configuration
+   - Add LoRA parameters
+   Ref: startLine: 7, endLine: 46
+
+4. lightning_model_utils.py
+   - Add Lightning model setup
+   - Integrate LoRA configuration
+   - Handle tokenizer initialization
+   Ref: startLine: 8, endLine: 40
+
+5. lightning_inference.py
+   - Add W&B logging for predictions
+   - Implement batch prediction
+   - Add test model functionality
+   Ref: startLine: 7, endLine: 94
+
+dependencies:
++ pytorch-lightning>=2.0.0
++ wandb
++ transformers
++ peft
++ datasets
++ scikit-learn
++ torch>=2.0.0
+
+Closes #123

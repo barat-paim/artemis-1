@@ -18,7 +18,7 @@ from config import TrainingConfig
 from dataloader import TextClassificationDataset
 from inference import test_model
 from lightning_model import LightningClassifier
-from model_utils import setup_model_and_tokenizer
+from model_utils import setup_lightning_model
 from monitor import TrainingMonitor
 from trainer import Trainer
 from dashboard import TrainingDashboard
@@ -71,17 +71,18 @@ def run_training(stdscr):
 
 
     # Initialize trainer
-    trainer = pl.Trainer(accelerator=config.device,
+    trainer = pl.Trainer(accelerator='gpu' if config.device == 'cuda' else 'cpu',
                          callbacks=callbacks,
                          logger=wandb_logger,
                          max_epochs=config.num_epochs,
                          max_steps=config.max_steps,
-                         precision=config.dtype,
+                         precision='16-mixed' if config.device == 'cuda' else '32',
+                         gradient_clip_val=1.0,
                          gradient_checkpointing=True)
 
     # Initialize model and data module
-    model = LightningClassifier(config)
-    data_module = TextClassificationDataModule(config)
+    model, tokenizer = setup_lightning_model(config)
+    data_module = TextClassificationDataModule(config, tokenizer)
 
     # Train model
     try:
