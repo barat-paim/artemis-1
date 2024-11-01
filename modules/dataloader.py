@@ -1,46 +1,54 @@
 # dataloader.py
-from torch.utils.data import Dataset, DataLoader
-from typing import Dict, Any, List
+from pytorch_lightning import LightningDataModule
+from torch.utils.data import DataLoader
+from datasets import load_dataset
+from transformers import AutoTokenizer
 import torch
-from config import TrainingConfig
 
-class BaseDataset(Dataset):
-    def __init__(self, data, tokenizer, config: TrainingConfig):
-        self.data = data
-        self.tokenizer = tokenizer
+class TextClassificationDataModule(LightningDataModule):
+    def __init__(self, config):
+        super().__init__()
         self.config = config
-
-    def __len__(self):
-        return len(self.data)
-    
-    def __getitem__(self, idx) -> Dict[str, torch.Tensor]:
-        raise NotImplementedError("Implement this method in child classes")
-    
-    def collate_fn(self, batch: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
-        raise NotImplementedError("Implement this method in child classes") 
-    
-class TextClassificationDataset(BaseDataset):
-    def __getitem__(self, idx):
-        item = self.data[idx]
+        self.tokenizer = AutoTokenizer.from_pretrained(config.model_name)
         
-        # Format input text
-        inputs = self.tokenizer(
-            item['text'],
-            max_length=self.config.model_max_length,
-            padding='max_length',
+    def setup(self, stage=None):
+        # Load dataset
+        dataset = load_dataset("tweet_eval", "sentiment")
+        
+        # Select subset of data
+        self.train_dataset = dataset['train'].select(range(self.config.train_size))
+        self.val_dataset = dataset['test'].select(range(self.config.eval_size))
+        
+    def train_dataloader(self):
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.config.batch_size,
+            shuffle=True,
+            collate_fn=self.collate_fn
+        )
+        
+    def val_dataloader(self):
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.config.eval_batch_size,
+            shuffle=False,
+            collate_fn=self.collate_fn
+        )
+        
+    def collate_fn(self, examples):
+        texts = [ex['text'] for ex in examples]
+        labels = [ex['label'] for ex in examples]
+        
+        encodings = self.tokenizer(
+            texts,
+            padding=True,
             truncation=True,
+            max_length=self.config.model_max_length,
             return_tensors='pt'
         )
         
         return {
-            'input_ids': inputs['input_ids'].squeeze(),
-            'attention_mask': inputs['attention_mask'].squeeze(),
-            'labels': torch.tensor(item['label'], dtype=torch.long)
-        }
-    
-    def collate_fn(self, batch: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
-        return {
-            'input_ids': torch.stack([x['input_ids'] for x in batch]),
-            'attention_mask': torch.stack([x['attention_mask'] for x in batch]),
-            'labels': torch.stack([x['labels'] for x in batch])
+            'input_ids': encodings['input_ids'],
+            'attention_mask': encodings['attention_mask'],
+            'labels': torch.tensor(labels)
         }
