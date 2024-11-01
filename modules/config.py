@@ -20,6 +20,7 @@ class TrainingConfig:
     max_steps: int = 1000
     num_train_samples: int = 1000
     num_eval_samples: int = 100
+    save_top_k: int = 3 # Added Recently
 
     # Hardware Settings
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
